@@ -74,8 +74,12 @@ WSGI_APPLICATION = "celuvia_images.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "celuvia_db",
+        "USER": "celuvia_admin",
+        "PASSWORD": "hyperionDev",
+        "HOST": "localhost",
+        "PORT": "3306",
     }
 }
 
