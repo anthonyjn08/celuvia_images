@@ -11,7 +11,7 @@ class User(AbstractUser):
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     full_name = models.CharField(max_length=100, blank=True)
-    email = models.CharField(max_length=100)
+    email = models.EmailField(max_length=100, unique=True)
     phone_number = models.CharField(max_length=20, blank=True)
     address_1 = models.CharField(max_length=50, blank=True)
     address_2 = models.CharField(max_length=50, blank=True)
@@ -20,7 +20,7 @@ class User(AbstractUser):
     post_code = models.CharField(max_length=10, blank=True)
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name", "last_name", "email"]
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     def save(self, *args, **kwargs):
         if not self.full_name:
