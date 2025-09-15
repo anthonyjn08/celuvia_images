@@ -1,4 +1,33 @@
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 
+class User(AbstractUser):
+    """
+    Custom user model for both Buyer and Vendors accounts.
+    """
+    username = None
+    first_name = models.CharField(max_length=50)
+    last_name = models.CharField(max_length=50)
+    full_name = models.CharField(max_length=100, blank=True)
+    email= models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=20, blank=True)
+    address_1 = models.CharField(max_length=50, blank=True)
+    address_2 = models.CharField(max_length=50, blank=True)
+    town = models.CharField(max_length=50, blank=True)
+    city = models.CharField(max_length=50, blank=True)
+    post_code = models.CharField(max_length=10, blank=True)
 
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = ["first_name", "last_name", "email"]
+
+    def save(self, *args, **kwargs):
+        if not self.full_name:
+            self.full_name = f"{self.first_name} {self.last_name}"
+        super().save(*args, **kwargs)
+    
+    def is_vendor(self):
+        return self.groups.filter(name="Vendors").exists()
+
+    def is_buyer(self, *args, **kwargs):
+        return self.groups.filter(namw="Buyers").exists()

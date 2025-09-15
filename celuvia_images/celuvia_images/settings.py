@@ -40,6 +40,7 @@ INSTALLED_APPS = [
 
     # Celuvia Apps
     "accounts",
+    "shop",
 ]
 
 MIDDLEWARE = [
