@@ -40,3 +40,9 @@ class ResetToken(models.Model):
     token = models.CharField(max_length=500)
     expiry_date = models.DateTimeField()
     used = models.BooleanField(default=False)
+
+    def is_valid(self):
+        return not self.used and self.expiry_date > now()
+
+    def __str__(self):
+        return f"{self.user.email} - {self.token}"
