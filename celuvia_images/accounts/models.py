@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.conf import settings
+from django.utils.timezone import now
 
 
 class User(AbstractUser):
@@ -35,8 +35,7 @@ class User(AbstractUser):
 
 
 class ResetToken(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.CharField(max_length=500)
     expiry_date = models.DateTimeField()
     used = models.BooleanField(default=False)
