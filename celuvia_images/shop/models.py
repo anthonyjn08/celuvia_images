@@ -16,9 +16,16 @@ class Store(models.Model):
         User, on_delete=models.CASCADE, related_name="stores")
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def owner_name(self):
+        return self.owner.full_name
 
     def __str__(self):
-        return self.name
+        return f"{self.name} (Owner: {self.owner.full_name})"
 
 
 class Category(models.Model):
