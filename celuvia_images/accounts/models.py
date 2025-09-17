@@ -5,8 +5,10 @@ from django.utils.timezone import now
 
 class User(AbstractUser):
     """
-    Custom user model for both Buyer and Vendors accounts.
+    Custom user model for Buyers and Vendors.
+    Uses email as the login field.
     """
+
     username = None
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -30,8 +32,8 @@ class User(AbstractUser):
     def is_vendor(self):
         return self.groups.filter(name="Vendors").exists()
 
-    def is_buyer(self, *args, **kwargs):
-        return self.groups.filter(namw="Buyers").exists()
+    def is_buyer(self):
+        return self.groups.filter(name="Buyers").exists()
 
 
 class ResetToken(models.Model):
