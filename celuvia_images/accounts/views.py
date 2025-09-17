@@ -5,6 +5,12 @@ from .forms import BuyerSignUpForm, VendorSignUpForm
 
 
 def buyer_signup(request):
+    """
+    Buyer signup.
+
+    - param request: HTTP request object.
+    - return: Rendered template of products.
+    """
     if request.method == "POST":
         form = BuyerSignUpForm(request.POST)
         if form.is_valid():
@@ -19,6 +25,12 @@ def buyer_signup(request):
 
 
 def vendor_signup(request):
+    """
+    Vendor signup.
+
+    - param request: HTTP request object.
+    - return: Rendered template of vendor dashboard.
+    """
     if request.method == "POST":
         form = VendorSignUpForm(request.POST)
         if form.is_valid():
@@ -33,6 +45,12 @@ def vendor_signup(request):
 
 
 def custom_login(request):
+    """
+    Login view.
+
+    - param request: HTTP request object.
+    - return: Rendered template of vendor dashboard.
+    """
     if request.method == "POST":
         email = request.POST.get("email")
         password = request.POST.get("password")
