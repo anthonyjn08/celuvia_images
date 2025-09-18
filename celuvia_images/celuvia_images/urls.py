@@ -23,4 +23,7 @@ urlpatterns = [
 
     # URL patterns for accounts app.
     path("accounts/", include("accounts.urls")),
+
+    # URL patterns for shop app.
+    path("shop/", include("shop.urls")),
 ]
