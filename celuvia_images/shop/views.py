@@ -1,7 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
-from .models import Store, Product
+from django.core.paginator import Paginator
+from .models import Store, Product, Category
 from .forms import StoreForm, ProductForm
 
 
@@ -117,4 +118,41 @@ def edit_product(request, product_id):
         "shop/add_product.html",
         {"form": form, "store": product.store,
          "edit": True, "product": product},
+    )
+
+
+@login_required
+def delete_product(request, product_id):
+    """
+    Allows owner to delete stores products.
+    """
+    product = get_object_or_404(
+        Product, id=product_id, store__owner=request.user)
+    if request.method == "POST":
+        store_id = product.store.id
+        product.delete()
+        return redirect("shop:store_detail", store_id=store_id)
+    return render(request, "shop/delete_confirm.html", {"product": product})
+
+
+def product_list(request, category_slug=None):
+    """
+    Product list view.
+    """
+    category = None
+    categories = Category.objects.all()
+    products = Product.objects.filter(store__is_active=True)
+
+    if category_slug:
+        category = get_object_or_404(Category, slug=category_slug)
+        products = products.filter(category=category, store__is_active=True)
+
+    paginator = Paginator(products, 12)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "shop/product_list.html",
+        {"category": category, "categories": categories, "page_obj": page_obj},
     )
