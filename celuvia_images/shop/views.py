@@ -47,3 +47,33 @@ def create_store(request):
     else:
         form = StoreForm()
     return render(request, "shop/store_form.html", {"form": form})
+
+
+@login_required
+def edit_store(request, store_id):
+    """
+    Edit an existing store. Restricted to store owner.
+    """
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    if request.method == "POST":
+        form = StoreForm(request.POST, instance=store)
+        if form.is_valid():
+            form.save()
+            return redirect("shop:store_detail", store_id=store.id)
+    else:
+        form = StoreForm(instance=store)
+    return render(request, "shop/store_form.html",
+                  {"form": form, "edit": True, "store": store})
+
+
+@login_required
+def close_store(request, store_id):
+    """
+    Allows an owner to close a store
+    """
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    if request.method == "POST":
+        store.is_active = False
+        store.save()
+        return redirect("shop:vendor_dashboard")
+    return render(request, "shop/close_store_confirm.html", {"store": store})
