@@ -1,0 +1,13 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+  <h2>Sign Up (Vendor)</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Sign Up</button>
+  </form>
+  <p class="mt-5">Are you a buyer? <a href="{% url 'accounts:signup_buyer' %}">Sign up here</a>.</p>
+</div>
+{% endblock %}

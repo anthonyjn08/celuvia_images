@@ -1,0 +1,40 @@
+{% extends "shop/base.html" %}
+{% load static %}
+(% block content %)
+<div class="container my-5">
+    <h2>Vendor Dashboard</h2>
+    
+    <!-- Vendor Orders -->
+    <div class="mb-4">
+        <a href="{% url 'shop:vendor_orders' %}" class="btn btn-outline-primary">View Orders</a>
+    </div>
+
+    <!-- Store Management -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Your Stores</h4>
+        <a href="{% url 'shop:create_store' %}" class="btn btn-primary">Create New Store</a>
+    </div>
+
+    <ul class="list-group">
+        {% for store in stores %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <strong>{{ store.name }}</strong>
+                    {% if not store.is_active %}
+                        <span class="badge bg-secondary">Closed</span>
+                    {% endif %}
+                </div>
+                <div>
+                    <a href="{% url 'shop:store_detail' store.id %}" class="btn btn-sm btn-outline-info">Manage</a>
+                    <a href="{% url 'shop:edit_store' store.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    {% if store.is_active %}
+                        <a href="{% url 'shop:close_store' store.id %}" class="btn btn-sm btn-outline-danger">Close</a>
+                    {% endif %}
+                </div>
+            </li>
+        {% empty %}
+            <li class="list-group-item">You don't have any stores yet.</li>
+        {% endfor %}
+    </ul>
+</div>
+{% endblock %}

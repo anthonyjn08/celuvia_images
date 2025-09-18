@@ -1,0 +1,39 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>My Orders</h2>
+    {% if orders %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Items</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+                <tr>
+                    <td>#{{ order.id }}</td>
+                    <td>{{ order.created_at|date:"d M Y, H:i" }}</td>
+                    <td>£{{ order.total }}</td>
+                    <td>{{ order.get_status_display }}</td>
+                    <td>
+                        <ul class="list-unstyled">
+                            {% for item in order.items.all %}
+                                <li>{{ item.quantity }} x {{ item.product.name }} ({{ item.frame_colour }}/{{ item.size }})</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>You haven't placed any orders yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

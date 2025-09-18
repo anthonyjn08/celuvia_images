@@ -17,8 +17,17 @@ def vendor_dashboard(request):
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
-    stores = request.user.stores.all()
-    return render(request, "shop/vendor_dashboard.html", {"stores": stores})
+    stores = request.user.stores.prefetch_related("products")
+    query = request.GET.get("q")
+    if query:
+        for store in stores:
+            store.filtered_products = store.products.filter(
+                name__icontains=query)
+    else:
+        for store in stores:
+            store.filtered_products = store.products.all()
+    return render(request, "shop/vendor_dashboard.html",
+                  {"stores": stores, "query": query})
 
 
 @login_required
@@ -82,6 +91,30 @@ def close_store(request, store_id):
         store.save()
         return redirect("shop:vendor_dashboard")
     return render(request, "shop/close_store_confirm.html", {"store": store})
+
+
+@login_required
+def vendor_orders(request):
+    """
+    Allows vendors to orders from their stores.
+    """
+    if not request.user.is_vendor():
+        return redirect("shop:product_list")
+
+    # Get vendor's stores
+    stores = request.user.stores.all()
+
+    # Get all order items for those stores
+    order_items = OrderItem.objects.filter(
+        product__store__in=stores).select_related(
+            "order", "product", "order__user")
+
+    # Group by order
+    orders = {}
+    for item in order_items:
+        orders.setdefault(item.order, []).append(item)
+
+    return render(request, "shop/vendor_orders.html", {"orders": orders})
 
 
 @login_required
@@ -299,6 +332,8 @@ def checkout(request):
 
 @login_required
 def add_review(request, product_id):
+    """
+    Allows users to review products"""
     product = get_object_or_404(Product, id=product_id)
     if request.method == "POST":
         form = ReviewForm(request.POST)
@@ -321,5 +356,8 @@ def add_review(request, product_id):
 
 @login_required
 def my_orders(request):
+    """
+    Allows users to see their order history.
+    """
     orders = request.user.orders.all().order_by("-created_at")
     return render(request, "shop/my_orders.html", {"orders": orders})
