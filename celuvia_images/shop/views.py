@@ -1,8 +1,8 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
-from .models import Store
-from .forms import StoreForm
+from .models import Store, Product
+from .forms import StoreForm, ProductForm
 
 
 @login_required
@@ -77,3 +77,44 @@ def close_store(request, store_id):
         store.save()
         return redirect("shop:vendor_dashboard")
     return render(request, "shop/close_store_confirm.html", {"store": store})
+
+
+@login_required
+def add_product(request, store_id):
+    """
+    Allows owner to add new products.
+    """
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    if request.method == "POST":
+        form = ProductForm(request.POST, request.FILES)
+        if form.is_valid():
+            product = form.save(commit=False)
+            product.store = store
+            product.save()
+            return redirect("shop:store_detail", store_id=store.id)
+    else:
+        form = ProductForm()
+    return render(request, "shop/add_product.html",
+                  {"form": form, "store": store})
+
+
+@login_required
+def edit_product(request, product_id):
+    """
+    Allows owner to edit existing products.
+    """
+    product = get_object_or_404(
+        Product, id=product_id, store__owner=request.user)
+    if request.method == "POST":
+        form = ProductForm(request.POST, request.FILES, instance=product)
+        if form.is_valid():
+            form.save()
+            return redirect("shop:store_detail", store_id=product.store.id)
+    else:
+        form = ProductForm(instance=product)
+    return render(
+        request,
+        "shop/add_product.html",
+        {"form": form, "store": product.store,
+         "edit": True, "product": product},
+    )
