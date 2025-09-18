@@ -19,7 +19,7 @@ urlpatterns = [
           views.delete_product, name="delete_product"),
 
      # Shop URLs
-     path("products/", views.product_list, name="product_list"),
+     path("", views.product_list, name="product_list"),
      path("products/category/<slug:category_slug>/",
           views.product_list, name="product_list_by_category"),
      path("product/<int:product_id>/",

@@ -1,0 +1,38 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>Products</h2>
+    <div class="row">
+        {% for product in page_obj %}
+        <div class="col-md-3 mb-4">
+            <div class="card h-100">
+                {% if product.image %}
+                    <img src="{{ product.img.url }}" alt="{{ product.name }}" class="card-img-top">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ product.name }}</h5>
+                    <p class="card-text">{{ product.price }}</p>
+                    <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">View</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p>No Products available</p>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    <nav>
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-list" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+            {% endif %}
+            <li class="page-item-disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endblock %}

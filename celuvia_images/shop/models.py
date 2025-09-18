@@ -21,6 +21,7 @@ class Store(models.Model):
     email = models.EmailField()
     phone_number = models.CharField(max_length=20)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
 
     @property
     def owner_name(self):
@@ -96,7 +97,6 @@ class Product(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     stock = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
 
     class Meta:
         unique_together = ("store", "name", "frame_colour", "size")

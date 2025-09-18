@@ -25,5 +25,5 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
 
     # URL patterns for shop app.
-    path("shop/", include("shop.urls")),
+    path("", include("shop.urls")),
 ]
