@@ -2,7 +2,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseForbidden
 from django.core.paginator import Paginator
-from .models import Store, Product, Category
+from django.core.mail import send_mail
+from django.conf import settings
+from decimal import Decimal
+from .models import Store, Product, Category, Order, OrderItem
 from .forms import StoreForm, ProductForm
 
 
@@ -156,3 +159,101 @@ def product_list(request, category_slug=None):
         "shop/product_list.html",
         {"category": category, "categories": categories, "page_obj": page_obj},
     )
+
+
+def product_detail(request, product_id):
+    """
+    Product detail view. Users can add items to cart.
+    """
+    product = get_object_or_404(Product, id=product_id)
+
+    if request.method == "POST":
+        frame = request.POST.get("frame_colour")
+        size = request.POST.get("size")
+        quantity = int(request.POST.get("quantity", 1))
+
+        # Use session for cart
+        cart = request.session.get("cart", {})
+        cart_key = f"{product.id}:{frame}:{size}"
+        if cart_key in cart:
+            cart[cart_key]["quantity"] += quantity
+        else:
+            cart[cart_key] = {
+                "product_id": product.id,
+                "name": product.name,
+                "frame": frame,
+                "size": size,
+                "price": str(product.price),
+                "quantity": quantity,
+                "image": product.image.url if product.image else None,
+            }
+        request.session["cart"] = cart
+        request.session.modified = True
+        return redirect("shop:cart")
+
+    return render(request, "shop/product_detail.html", {"product": product})
+
+
+def cart_view(request):
+    """View for showing the current user's cart (stored in session)."""
+    cart = request.session.get("cart", {})
+    total = sum(
+        float(item["price"]) * item["quantity"] for item in cart.values())
+    return render(request, "shop/cart.html", {"cart": cart, "total": total})
+
+
+@login_required
+def checkout(request):
+    """Checkout view. Users will need to login."""
+    cart = request.session.get("cart", {})
+    if not cart:
+        return redirect("shop:cart")
+
+    total = sum(
+        Decimal(item["price"]) * item["quantity"] for item in cart.values())
+
+    if request.method == "POST":
+        # Create the order
+        order = Order.objects.create(user=request.user, total=total)
+
+        # 2. Create order items
+        for item in cart.values():
+            product = Product.objects.get(id=item["product_id"])
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                frame_colour=item["frame"],
+                size=item["size"],
+                quantity=item["quantity"],
+                price=Decimal(item["price"]),
+            )
+
+        # Send email confirmation
+        subject = f"Order Confirmation - Order #{order.id}"
+        message = f"Thank you {order.user.full_name},\n\n"
+        message += "Your order has been placed successfully.\n\n"
+        message += "Items:\n"
+        for item in order.items.all():
+            message += (f"- {item.quantity} x {item.product.name} "
+                        f"({item.frame_colour}/{item.size}) @ £{item.price}\n")
+        message += f"\nTotal: £{order.total}\n\n"
+        message += "We'll contact you when your order is dispatched.\n"
+        message += "\nCeluvia Images"
+
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [order.user.email],
+            fail_silently=False,
+        )
+
+        # Clear cart
+        request.session["cart"] = {}
+        request.session.modified = True
+
+        return render(
+            request, "shop/order_confirmation.html", {"order": order})
+
+    return render(
+        request, "shop/checkout.html", {"cart": cart, "total": total})

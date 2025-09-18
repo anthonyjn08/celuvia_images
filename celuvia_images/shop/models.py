@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from django.db.models import Avg
 from accounts.models import User
 
@@ -150,22 +151,31 @@ class Order(models.Model):
         - total: DecimalField for the order total amount.
         - email_sent: BooleanField, True if invoice email has been sent.
     """
-    buyer = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="orders")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="orders")
     created_at = models.DateTimeField(auto_now_add=True)
     total = models.DecimalField(max_digits=10, decimal_places=2)
-    email_sent = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Order {self.id} by {self.buyer.email}"
+        return f"Order {self.id} by {self.user.full_name} - £{self.total}"
 
 
 class OrderItem(models.Model):
+    """
+    Individual items in an order.
+    """
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    product = models.ForeignKey(
+        "Product", on_delete=models.SET_NULL, null=True)
+    frame_colour = models.CharField(max_length=20, default="black")
+    size = models.CharField(max_length=20, default="medium")
     quantity = models.PositiveIntegerField()
+    price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"{self.product} (x{self.quantity})"
+        return (
+            f"{self.quantity} x {self.product.name} "
+            f"({self.frame_colour}/{self.size})"
+            )
