@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.http import HttpResponseForbidden
 from django.core.paginator import Paginator
 from django.core.mail import send_mail
@@ -195,16 +196,51 @@ def product_detail(request, product_id):
 
 
 def cart_view(request):
-    """View for showing the current user's cart (stored in session)."""
+    """
+    View for showing the current user's cart.
+    """
     cart = request.session.get("cart", {})
     total = sum(
         float(item["price"]) * item["quantity"] for item in cart.values())
     return render(request, "shop/cart.html", {"cart": cart, "total": total})
 
 
+@require_POST
+def update_cart(request, cart_key):
+    """
+    Allows user to update quantity of an item in the cart.
+    """
+    cart = request.session.get("cart", {})
+    if cart_key in cart:
+        quantity = int(request.POST.get("quantity", 1))
+        if quantity > 0:
+            cart[cart_key]["quantity"] = quantity
+        else:
+            # if quantity is 0, remove the item
+            cart.pop(cart_key)
+        request.session["cart"] = cart
+        request.session.modified = True
+    return redirect("shop:cart")
+
+
+@require_POST
+def remove_from_cart(request, cart_key):
+    """
+    Allows users to remove an item from the cart.
+    """
+    cart = request.session.get("cart", {})
+    if cart_key in cart:
+        cart.pop(cart_key)
+        request.session["cart"] = cart
+        request.session.modified = True
+    return redirect("shop:cart")
+
+
 @login_required
 def checkout(request):
-    """Checkout view. Users will need to login."""
+    """
+    Checkout view. Users will need to login.
+    """
     cart = request.session.get("cart", {})
     if not cart:
         return redirect("shop:cart")
@@ -216,7 +252,7 @@ def checkout(request):
         # Create the order
         order = Order.objects.create(user=request.user, total=total)
 
-        # 2. Create order items
+        # Create order items
         for item in cart.values():
             product = Product.objects.get(id=item["product_id"])
             OrderItem.objects.create(
