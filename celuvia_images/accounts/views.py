@@ -1,7 +1,7 @@
 import secrets
 from hashlib import sha1
 from datetime import timedelta
-from django.utils.timesince import now
+from django.utils.timezone import now
 from django.core.mail import EmailMessage
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate

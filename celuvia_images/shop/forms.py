@@ -1,5 +1,5 @@
 from django import forms
-from .models import Store, Product
+from .models import Store, Product, Review
 
 
 class StoreForm(forms.ModelForm):
@@ -65,3 +65,15 @@ class ProductForm(forms.ModelForm):
             "stock": forms.NumberInput(
                 attrs={"class": "form-control", "step": "1", "min": "0"}),
             }
+
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ["rating", "comment"]
+        widgets = {
+            "rating": forms.Select(
+                attrs={"class": "form-select"}),
+            "comment": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3}),
+        }

@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
         {% block title %}
-        Celuvia Images
+        {{ SITE_NAME }}
         {% endblock %}
     </title>
     <!-- Bootstrap 5 -->
@@ -29,7 +29,7 @@
      <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
         <div class="container">
             <a class="navbar-brand fw-bold" href="{% url 'shop:product_list' %}">
-                Celuvia Images
+                {{ SITE_NAME }}
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>

@@ -7,7 +7,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from decimal import Decimal
 from .models import Store, Product, Category, Order, OrderItem
-from .forms import StoreForm, ProductForm
+from .forms import StoreForm, ProductForm, ReviewForm
 
 
 @login_required
@@ -265,9 +265,11 @@ def checkout(request):
             )
 
         # Send email confirmation
-        subject = f"Order Confirmation - Order #{order.id}"
+        subject = (
+            f"Order Confirmation - {settings.SITE_NAME} (Order #{order.id})")
         message = f"Thank you {order.user.full_name},\n\n"
-        message += "Your order has been placed successfully.\n\n"
+        message += (f"Your order with {settings.SITE_URL} has been placed "
+                    f"successfully.\n\n")
         message += "Items:\n"
         for item in order.items.all():
             message += (f"- {item.quantity} x {item.product.name} "
@@ -293,3 +295,31 @@ def checkout(request):
 
     return render(
         request, "shop/checkout.html", {"cart": cart, "total": total})
+
+
+@login_required
+def add_review(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    if request.method == "POST":
+        form = ReviewForm(request.POST)
+        if form.is_valid():
+            review = form.save(commit=False)
+            review.product = product
+            review.user = request.user
+            # mark as verified if user bought this product
+            review.verified = OrderItem.objects.filter(
+                order__user=request.user,
+                product=product
+            ).exists()
+            review.save()
+            return redirect("shop:product_detail", product_id=product.id)
+    else:
+        form = ReviewForm()
+    return render(
+        request, "shop/add_review.html", {"form": form, "product": product})
+
+
+@login_required
+def my_orders(request):
+    orders = request.user.orders.all().order_by("-created_at")
+    return render(request, "shop/my_orders.html", {"orders": orders})

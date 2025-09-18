@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils.timezone import now
 from django.db.models import Avg
 from accounts.models import User
 
@@ -124,21 +125,31 @@ class Review(models.Model):
     Fields:
         - product: ForeignKey linking to the reviewed Product.
         - user: ForeignKey linking to the reviewing User.
-        - rating: PositiveIntegerField for review rating (default 5).
+        - rating: IntegerField for review rating (default 5).
         - comment: TextField for review content.
         - verified: BooleanField, True if buyer purchased the product.
         - created_at: DateTimeField for review creation date.
     """
+    RATING_CHOICES = [
+        (1, "1"),
+        (2, "2"),
+        (3, "3"),
+        (4, "4"),
+        (5, "5"),
+    ]
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="reviews")
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    rating = models.PositiveIntegerField(default=5)
-    comment = models.TextField()
+    rating = models.IntegerField(default=5, choices=RATING_CHOICES)
+    comment = models.TextField(blank=True)
     verified = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(default=now)
+
+    class Meta:
+        ordering = ["-created_at"]
 
     def __str__(self):
-        return f"{self.user.email} review on {self.product.name}"
+        return f"{self.user.full_name} - {self.product.name} ({self.rating}/5)"
 
 
 class Order(models.Model):
