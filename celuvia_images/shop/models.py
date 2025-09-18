@@ -9,7 +9,7 @@ class Store(models.Model):
 
     Fields:
         - owner: ForeignKey to the vendor User who owns the store.
-        - name: CharField for the store’s name (max length 200).
+        - name: CharField for the store's name (max length 200).
         - description: TextField for a short description of the store.
     """
     owner = models.ForeignKey(
@@ -54,10 +54,10 @@ class Product(models.Model):
         - Available size options for the product.
 
     Fields:
-        - store: ForeignKey linking product to the vendor’s Store.
+        - store: ForeignKey linking product to the vendor's Store.
         - category: ForeignKey linking product to a Category (nullable).
-        - name: CharField for the product’s name (max length 200).
-        - frame_color: CharField with choices from FRAME_CHOICES.
+        - name: CharField for the product's name (max length 200).
+        - frame_colour: CharField with choices from FRAME_CHOICES.
         - size: CharField with choices from SIZE_CHOICES.
         - description: TextField for the product description.
         - image: ImageField storing uploaded product images.
@@ -87,7 +87,7 @@ class Product(models.Model):
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True, blank=True)
     name = models.CharField(max_length=200)
-    frame_color = models.CharField(max_length=20, choices=FRAME_CHOICES)
+    frame_colour = models.CharField(max_length=20, choices=FRAME_CHOICES)
     size = models.CharField(max_length=20, choices=SIZE_CHOICES)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="products/")
@@ -96,10 +96,10 @@ class Product(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("store", "name", "frame_color", "size")
+        unique_together = ("store", "name", "frame_colour", "size")
 
     def __str__(self):
-        return f"{self.name} - {self.frame_color}/{self.size}"
+        return f"{self.name} - {self.frame_colour}/{self.size}"
 
     def get_average_rating(self):
         """

@@ -35,7 +35,7 @@ class BuyerSignUpForm(UserCreationForm):
                 attrs={"class": "form-control"}),
             "email": forms.EmailInput(
                 attrs={"class": "form-control"}),
-            "phone": forms.TextInput(
+            "phone_number": forms.TextInput(
                 attrs={"class": "form-control"}),
             "address_1": forms.TextInput(
                 attrs={"class": "form-control"}),
@@ -86,7 +86,7 @@ class VendorSignUpForm(UserCreationForm):
                 attrs={"class": "form-control"}),
             "email": forms.EmailInput(
                 attrs={"class": "form-control"}),
-            "phone": forms.TextInput(
+            "phone_number": forms.TextInput(
                 attrs={"class": "form-control"}),
             "address_1": forms.TextInput(
                 attrs={"class": "form-control"}),
