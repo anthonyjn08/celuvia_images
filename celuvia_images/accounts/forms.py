@@ -29,7 +29,7 @@ class BuyerSignUpForm(UserCreationForm):
             "phone_number", "address_1", "address_2",
             "town", "city", "post_code",
             "password1", "password2"
-        ]
+            ]
         widgets = {
             "first_name": forms.TextInput(
                 attrs={"class": "form-control"}),
@@ -80,7 +80,7 @@ class VendorSignUpForm(UserCreationForm):
             "phone_number", "address_1", "address_2",
             "town", "city", "post_code",
             "password1", "password2"
-        ]
+            ]
         widgets = {
             "first_name": forms.TextInput(
                 attrs={"class": "form-control"}),
@@ -105,3 +105,25 @@ class VendorSignUpForm(UserCreationForm):
             "password2": forms.PasswordInput(
                 attrs={"class": "form-control"}),
         }
+
+
+class LoginForm(forms.Form):
+    """
+    Login form.
+
+    Fields:
+        - email: EmailField, users email (username) address
+        - password: CharField, users password
+    """
+    email = forms.EmailField(
+        widget=forms.EmailInput(attrs={"class": "form-control",
+                                       "placeholder": "Email address"}),
+
+        label="Email",
+    )
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={"class": "form-control",
+                                          "placeholder": "Password"}),
+
+        label="Password",
+    )

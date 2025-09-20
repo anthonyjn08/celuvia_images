@@ -4,13 +4,13 @@ from datetime import timedelta
 from django.utils.timezone import now
 from django.core.mail import EmailMessage
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, logout, get_user_model
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import Group
-from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
-from .forms import BuyerSignUpForm, VendorSignUpForm
+from .forms import BuyerSignUpForm, VendorSignUpForm, LoginForm
 from .models import ResetToken
 
 User = get_user_model()
@@ -26,14 +26,16 @@ def buyer_signup(request):
     if request.method == "POST":
         form = BuyerSignUpForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            group = Group.objects.get(name="Buyers")
-            user.groups.add(group)
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data["password1"])
+            user.save()
+            buyers_group = Group.objects.get(name="Buyers")
+            user.groups.add(buyers_group)
             login(request, user)
             messages.success(
                 request, "Your account has been created successfully!")
 
-            return redirect("shop:product_list")
+            return redirect("shop:home")
     else:
         form = BuyerSignUpForm()
     return render(request, "accounts/signup_buyer.html", {"form": form})
@@ -49,9 +51,12 @@ def vendor_signup(request):
     if request.method == "POST":
         form = VendorSignUpForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            group = Group.objects.get(name="Vendors")
-            user.groups.add(group)
+            user = form.save(commit=False)
+            user.set_password(form.cleaned_data["password1"])
+            user.save()
+            vendors_group = Group.objects.get(name="Vendors")
+            user.groups.add(vendors_group)
+            login(request, user)
             messages.success(request,
                              "Your account has been created successfully!")
             return redirect("shop:vendor_dashboard")
@@ -60,7 +65,7 @@ def vendor_signup(request):
     return render(request, "accounts/signup_vendor.html", {"form": form})
 
 
-def custom_login(request):
+def login_view(request):
     """
     Login view.
 
@@ -68,15 +73,37 @@ def custom_login(request):
     - return: Rendered template of vendor dashboard.
     """
     if request.method == "POST":
-        email = request.POST.get("email")
-        password = request.POST.get("password")
-        user = authenticate(request, email=email, password=password)
-        if user:
-            login(request, user)
-            return redirect("shop:product_list")
-        return render(
-            request, "accounts/login.html", {"error": "Invalid credentials"})
-    return render(request, "accounts/login.html")
+        form = LoginForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data["email"]
+            password = form.cleaned_data["password"]
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                user = None
+
+            if user:
+                user = authenticate(request, username=user.username,
+                                    password=password)
+
+                if user is not None:
+                    login(request, user)
+                    messages.success(request, "Logged in successfully.")
+                    return redirect("shop:home")
+            messages.error(request, "Invalid email or password.")
+    else:
+        form = LoginForm()
+    return render(request, "accounts/login.html", {"form": form})
+
+
+@login_required
+def logout_view(request):
+    """
+    Log the user out.
+    """
+    logout(request)
+    messages.info(request, "You have been logged out.")
+    return redirect("shop:home")
 
 
 def request_password_reset(request):
@@ -144,7 +171,11 @@ def reset_password(request, token):
             reset_token.user.save()
             reset_token.used = True
             reset_token.save()
+            messages.success(request,
+                             "Your password has been reset. Please log in.")
             return HttpResponseRedirect(reverse("accounts:login"))
+        else:
+            messages.error(request, "Passwords do not match.")
 
     return render(request, "accounts/reset_password.html",
                   {"token": token})
