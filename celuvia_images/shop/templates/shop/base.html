@@ -26,78 +26,90 @@
 </head>
 <body>
     <!-- Navbar -->
-    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'shop:home' %}">Home</a>
-        </li>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+        <div class="container">
+            <!-- Brand with a bit of left margin -->
+            <a class="navbar-brand fw-bold ms-3" href="{% url 'shop:home' %}">{{ SITE_NAME }}</a>
 
-        <!-- Categories dropdown -->
-        <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Categories
-            </a>
-            <ul class="dropdown-menu" aria-labelledby="categoriesDropdown">
-                {% for cat in categories %}
-                    <li>
-                        <a class="dropdown-item" href="{% url 'shop:category_detail' cat.slug %}">{{ cat.name }}</a>
+            <!-- Toggler for mobile -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Navbar links -->
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav mb-2 mb-lg-0">
+                    <!-- Home link -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'shop:home' %}">Home</a>
                     </li>
-                {% empty %}
-                    <li><span class="dropdown-item-text text-muted">No categories yet</span></li>
-                {% endfor %}
-            </ul>
-        </li>
 
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'shop:product_list' %}">All Products</a>
-        </li>
-    </ul>
+                    <!-- Categories dropdown -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Categories
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="categoriesDropdown">
+                            {% for cat in categories %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'shop:category_detail' cat.slug %}">{{ cat.name }}</a>
+                                </li>
+                            {% empty %}
+                                <li><span class="dropdown-item-text text-muted">No categories yet</span></li>
+                            {% endfor %}
+                        </ul>
+                    </li>
 
-    <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-        {% if user.is_authenticated %}
-            {% if user.is_vendor %}
-                <!-- Vendor-specific links -->
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'shop:vendor_orders' %}">Vendor Orders</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'shop:store_detail' user.stores.first.id %}">My Stores</a>
-                </li>
-            {% elif user.is_buyer %}
-                <!-- Buyer-specific links -->
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'shop:my_orders' %}">My Orders</a>
-                </li>
-            {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'shop:product_list' %}">All Products</a>
+                    </li>
 
-            <!-- Cart always visible -->
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'shop:show_cart' %}">
-                    Cart
-                </a>
-            </li>
+                    {% if user.is_authenticated %}
+                        {% if user.is_vendor %}
+                            <!-- Vendor-specific links -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'shop:vendor_orders' %}">Vendor Orders</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'shop:store_detail' user.stores.first.id %}">My Stores</a>
+                            </li>
+                        {% elif user.is_buyer %}
+                            <!-- Buyer-specific links -->
+                            <li class="nav-item">
+                                <a class="nav-link" href="{% url 'shop:my_orders' %}">My Orders</a>
+                            </li>
+                        {% endif %}
 
-            <!-- Profile dropdown -->
-            <li class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    {{ user.full_name|default:user.username }}
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-                    <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Log out</a></li>
+                        <!-- Cart always visible -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'shop:show_cart' %}">Cart</a>
+                        </li>
+
+                        <!-- Profile dropdown -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                {{ user.full_name|default:user.username }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                                <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Log out</a></li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <!-- Guest -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:login' %}">Login</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'accounts:signup_buyer' %}">Sign up</a>
+                        </li>
+                    {% endif %}
                 </ul>
-            </li>
-        {% else %}
-            <!-- Guest -->
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'accounts:login' %}">Login</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link" href="{% url 'accounts:signup_buyer' %}">Sign up</a>
-            </li>
-        {% endif %}
-    </ul>
+            </div>
+        </div>
+    </nav>
 
-    <!-- Flash Messages -->
-    <div class="container mt-3">
+    <!-- Flash Messages outside navbar, full width -->
+    <div class="container-fluid mt-3">
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -109,13 +121,13 @@
     </div>
 
     <!-- Content -->
-     <main>
-        {% block content %}
+    <main>
+    {% block content %}
 
-        {% endblock %}
-     </main>
+    {% endblock %}
+    </main>
 
-     <!-- Footer -->
+    <!-- Footer -->
     <footer class="bg-light border-top text-center py-3 mt-5">
         <p class="mb-1">&copy; {{ SITE_NAME }}</p>
         <p class="mb-0">Site for Educational Purposes Only</p>
