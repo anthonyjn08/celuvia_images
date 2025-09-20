@@ -1,0 +1,13 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>Add Product to {{ store.name }}</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-success">Add Product</button>
+        <a href="{% url 'shop:store_detail' store.id %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

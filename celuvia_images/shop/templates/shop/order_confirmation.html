@@ -1,0 +1,21 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>Thank you for your order!</h2>
+    <p>Your order <strong>#{{ order.id }}</strong> has been placed successfully.</p>
+
+    <h4>Order Summary</h4>
+    <ul class="list-group mb-3">
+        {% for item in order.items.all %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ item.quantity }} x {{ item.product.name }} ({{ item.frame_colour }}/{{ item.size }})
+                <span>£{{ item.product.price }}</span>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <p>A confirmation email has been sent to <strong>{{ order.user.email }}</strong>.</p>
+    <a href="{% url 'shop:home' %}" class="btn btn-primary">Continue Shopping</a>
+</div>
+{% endblock %}

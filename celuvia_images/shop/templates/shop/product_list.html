@@ -3,22 +3,46 @@
 {% block content %}
 <div class="container my-5">
     <h2>Products</h2>
-    <div class="row">
-        {% for product in page_obj %}
-        <div class="col-md-3 mb-4">
-            <div class="card h-100">
-                {% if product.image %}
-                    <img src="{{ product.img.url }}" alt="{{ product.name }}" class="card-img-top">
-                {% endif %}
+
+    <!-- Search -->
+    <form method="get" class="d-flex mb-4">
+        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control me-2" placeholder="Search products in {{ category.name }}">
+        <button type="submit" class="btn btn-outline-secondary">Search</button>
+    </form>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for product in products %}
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
                 <div class="card-body">
                     <h5 class="card-title">{{ product.name }}</h5>
-                    <p class="card-text">{{ product.price }}</p>
+                    <p class="card-text">£{{ product.price }}</p>
+
+                    <!-- Rating summary -->
+                    {% if product.get_average_rating %}
+                        <div class="mb-2">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= product.get_average_rating|floatformat:0 %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <small class="text-muted">
+                                {{ product.get_average_rating|floatformat:1 }}/5 ({{ product.get_review_count }})
+                            </small>
+                        </div>
+                    {% else %}
+                        <small class="text-muted">No reviews yet</small>
+                    {% endif %}
+
                     <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">View</a>
                 </div>
+                </div>
             </div>
-        </div>
         {% empty %}
-        <p>No Products available</p>
+            <p>No products found.</p>
         {% endfor %}
     </div>
 

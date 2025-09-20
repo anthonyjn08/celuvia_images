@@ -1,0 +1,54 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>{{ store.name }}</h2>
+    <p class="text-muted">Owner: {{ store.owner.full_name }} | {{ store.email }} | {{ store.phone_number }}</p>
+
+    <!-- Add product -->
+    <a href="{% url 'shop:add_product' store.id %}" class="btn btn-success mb-3">+ Add New Product</a>
+
+    <!-- Search -->
+    <form method="get" class="d-flex mb-4">
+        <input type="text" name="search" value="{{ request.GET.search }}" class="form-control me-2" placeholder="Search products in this store">
+        <button type="submit" class="btn btn-outline-secondary">Search</button>
+    </form>
+
+    <!-- Products list -->
+    {% if products %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th scope="col">Image</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Price</th>
+                        <th scope="col">Category</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" alt="{{ product.name }}" class="img-thumbnail" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% endif %}
+                        </td>
+                        <td>{{ product.name }}</td>
+                        <td>£{{ product.price }}</td>
+                        <td>{{ product.category.name }}</td>
+                        <td>
+                            <a href="{% url 'shop:edit_product' product.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                            <a href="{% url 'shop:delete_product' product.id %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No products found for this store.</p>
+    {% endif %}
+</div>
+{% endblock %}

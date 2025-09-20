@@ -8,6 +8,8 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.models import Group
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.http import HttpResponseRedirect
+from django.contrib import messages
 from .forms import BuyerSignUpForm, VendorSignUpForm
 from .models import ResetToken
 
@@ -28,6 +30,9 @@ def buyer_signup(request):
             group = Group.objects.get(name="Buyers")
             user.groups.add(group)
             login(request, user)
+            messages.success(
+                request, "Your account has been created successfully!")
+
             return redirect("shop:product_list")
     else:
         form = BuyerSignUpForm()
@@ -47,7 +52,8 @@ def vendor_signup(request):
             user = form.save()
             group = Group.objects.get(name="Vendors")
             user.groups.add(group)
-            login(request, user)
+            messages.success(request,
+                             "Your account has been created successfully!")
             return redirect("shop:vendor_dashboard")
     else:
         form = VendorSignUpForm()
@@ -81,59 +87,64 @@ def request_password_reset(request):
         email = request.POST.get("email")
         try:
             user = User.objects.get(email=email)
-            token = secrets.token_urlsafe(16)
-            expiry = now() + timedelta(minutes=10)
+        except User.DoesNotExist:
+            user = None
+
+        if user:
+            # Generate secure token
+            token_str = secrets.token_urlsafe(16)
+            token_hash = sha1(token_str.encode()).hexdigest()
+            expiry_date = now() + timedelta(minutes=10)
+
             ResetToken.objects.create(
                 user=user,
-                token=sha1(token.encode()).hexdigest(),
-                expiry_date=expiry
+                token=token_hash,
+                expiry_date=expiry_date,
             )
+
             reset_url = request.build_absolute_uri(
-                reverse("accounts:reset_password", args=[token])
+                reverse("accounts:reset_password", args=[token_str])
             )
 
-            subject = "Password Reset - Celuvia Images"
-            body = f"Hi {user.full_name},\n\n"
-            body += (f"Here is your password reset link (valid 10 minutes):"
-                     f"\n{reset_url}\n\n")
-            body += "If you did not request this, you can ignore this email."
+            # Send email
+            subject = "Password Reset Request"
+            body = (f"Hi {user.full_name},\n\nUse the link below to reset "
+                    f"your password:\n{reset_url}\n\nThis link will expire "
+                    f"in 10 minutes.")
+            email_msg = EmailMessage(subject, body, "noreply@celuvia.com",
+                                     [user.email])
 
-            email_msg = EmailMessage(subject, body, to=[user.email])
             email_msg.send()
 
-            return render(request, "accounts/password_reset_requested.html")
-        except User.DoesNotExist:
-            return render(request, "accounts/password_reset.html",
-                          {"error": "No user with that email."})
+        return render(request, "accounts/reset_requested.html")
 
-    return render(request, "accounts/password_reset.html")
+    return render(request, "accounts/request_password_reset.html")
 
 
 def reset_password(request, token):
     """
     Password reset.
     """
-    hashed = sha1(token.encode()).hexdigest()
+    token_hash = sha1(token.encode()).hexdigest()
     try:
-        reset_token = ResetToken.objects.get(token=hashed)
+        reset_token = ResetToken.objects.get(token=token_hash, used=False)
     except ResetToken.DoesNotExist:
-        return render(request, "accounts/password_reset_invalid.html")
+        reset_token = None
 
-    if not reset_token.is_valid():
-        reset_token.delete()
-        return render(request, "accounts/password_reset_invalid.html")
+    if not reset_token or reset_token.expiry_date < now():
+        if reset_token:
+            reset_token.delete()
+        return render(request, "accounts/reset_invalid.html")
 
     if request.method == "POST":
         password = request.POST.get("password")
         password_conf = request.POST.get("password_conf")
-        if password and password == password_conf:
-            user = reset_token.user
-            user.set_password(password)
-            user.save()
-            reset_token.delete()
-            return redirect("accounts:login")
-        return render(request, "accounts/password_reset_confirm.html",
-                      {"token": token, "error": "Passwords do not match"})
+        if password == password_conf:
+            reset_token.user.set_password(password)
+            reset_token.user.save()
+            reset_token.used = True
+            reset_token.save()
+            return HttpResponseRedirect(reverse("accounts:login"))
 
-    return render(request, "accounts/password_reset_confirm.html",
+    return render(request, "accounts/reset_password.html",
                   {"token": token})

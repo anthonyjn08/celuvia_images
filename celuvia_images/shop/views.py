@@ -1,13 +1,20 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_POST
+from django.contrib import messages
 from django.http import HttpResponseForbidden
 from django.core.paginator import Paginator
-from django.core.mail import send_mail
-from django.conf import settings
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_POST
 from decimal import Decimal
-from .models import Store, Product, Category, Order, OrderItem
+from .models import Store, Product, Category, Order, OrderItem, Review
 from .forms import StoreForm, ProductForm, ReviewForm
+
+
+def home(request):
+    """Store landing page."""
+    categories = Category.objects.all()
+    return render(request, "shop/home.html", {"categories": categories})
 
 
 @login_required
@@ -17,17 +24,10 @@ def vendor_dashboard(request):
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
-    stores = request.user.stores.prefetch_related("products")
-    query = request.GET.get("q")
-    if query:
-        for store in stores:
-            store.filtered_products = store.products.filter(
-                name__icontains=query)
-    else:
-        for store in stores:
-            store.filtered_products = store.products.all()
+
+    stores = Store.objects.filter(owner=request.user)
     return render(request, "shop/vendor_dashboard.html",
-                  {"stores": stores, "query": query})
+                  {"stores": stores})
 
 
 @login_required
@@ -35,32 +35,41 @@ def store_detail(request, store_id):
     """
     Detail page for managing a stores products.
     """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
     store = get_object_or_404(Store, id=store_id, owner=request.user)
-    query = request.GET.get("q")
-    products = store.products.all()
-    if query:
-        products = products.filter(name__icontains=query)
+    products = Product.objects.filter(store=store)
+
+    search = request.GET.get("search")
+    if search:
+        products = products.filter(name__icontains=search)
+
     return render(request, "shop/store_detail.html",
-                  {"store": store, "products": products, "query": query})
+                  {"store": store, "products": products})
 
 
 @login_required
-def create_store(request):
+def add_store(request):
     """
     View to create a new store. Restricted to vendors only.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
+
     if request.method == "POST":
         form = StoreForm(request.POST)
         if form.is_valid():
             store = form.save(commit=False)
             store.owner = request.user
             store.save()
-            return redirect("shop:store_detail", store_id=store.id)
+            messages.success(
+                request, f"Store '{store.name}' created successfully.")
+
+            return redirect("shop:vendor_dashboard")
     else:
         form = StoreForm()
-    return render(request, "shop/store_form.html", {"form": form})
+    return render(request, "shop/add_store.html", {"form": form})
 
 
 @login_required
@@ -68,16 +77,20 @@ def edit_store(request, store_id):
     """
     Edit an existing store. Restricted to store owner.
     """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     if request.method == "POST":
         form = StoreForm(request.POST, instance=store)
         if form.is_valid():
             form.save()
-            return redirect("shop:store_detail", store_id=store.id)
+            messages.success(request, f"Store '{store.name}' updated.")
+            return redirect("shop:vendor_dashboard")
     else:
         form = StoreForm(instance=store)
-    return render(request, "shop/store_form.html",
-                  {"form": form, "edit": True, "store": store})
+    return render(request, "shop/edit_store.html",
+                  {"form": form, "store": store})
 
 
 @login_required
@@ -85,36 +98,94 @@ def close_store(request, store_id):
     """
     Allows an owner to close a store
     """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     if request.method == "POST":
         store.is_active = False
         store.save()
+        messages.info(request, f"Store '{store.name}' has been closed.")
         return redirect("shop:vendor_dashboard")
-    return render(request, "shop/close_store_confirm.html", {"store": store})
+    return render(request, "shop/close_store.html", {"store": store})
 
 
 @login_required
 def vendor_orders(request):
     """
-    Allows vendors to orders from their stores.
+    Allows vendors view to orders from their stores.
     """
     if not request.user.is_vendor():
-        return redirect("shop:product_list")
+        return HttpResponseForbidden()
 
-    # Get vendor's stores
+    store_id = request.GET.get("store_id")
+    selected_store = int(store_id) if store_id else None
     stores = request.user.stores.all()
+    items_qs = OrderItem.objects.filter(
+        product__store__owner=request.user
+    ).select_related("order", "product", "order__user")
 
-    # Get all order items for those stores
-    order_items = OrderItem.objects.filter(
-        product__store__in=stores).select_related(
-            "order", "product", "order__user")
+    if selected_store:
+        items_qs = items_qs.filter(product__store_id=selected_store)
 
-    # Group by order
     orders = {}
-    for item in order_items:
+    for item in items_qs:
         orders.setdefault(item.order, []).append(item)
 
-    return render(request, "shop/vendor_orders.html", {"orders": orders})
+    return render(
+        request,
+        "shop/vendor_orders.html",
+        {
+            "orders": orders,
+            "stores": stores,
+            "selected_store": selected_store,
+        },
+    )
+
+
+@login_required
+@require_POST
+def update_order_status(request, order_id):
+    """
+    Allows vendors to update the status of orders from their stores.
+    """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+    order = get_object_or_404(Order, id=order_id)
+    has_items = OrderItem.objects.filter(
+        order=order, product__store__owner=request.user).exists()
+    if not has_items:
+        return HttpResponseForbidden()
+
+    new_status = request.POST.get("status")
+    if new_status not in dict(Order.STATUS_CHOICES):
+        messages.error(request, "Invalid status.")
+    else:
+        order.status = new_status
+        order.save()
+        messages.success(request, f"Order #{order.id} status updated.")
+    return redirect("shop:vendor_orders")
+
+
+def category_detail(request, category_slug):
+    """
+    Allows users to view products by category.
+    """
+    category = get_object_or_404(Category, slug=category_slug)
+    products = Product.objects.filter(category=category, store__is_active=True)
+
+    search = request.GET.get("search")
+    if search:
+        products = products.filter(name__icontains=search)
+
+    paginator = Paginator(products, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(
+        request,
+        "shop/category_detail.html",
+        {"category": category, "products": page_obj},
+    )
 
 
 @login_required
@@ -122,13 +193,19 @@ def add_product(request, store_id):
     """
     Allows owner to add new products.
     """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     if request.method == "POST":
         form = ProductForm(request.POST, request.FILES)
+
         if form.is_valid():
             product = form.save(commit=False)
             product.store = store
             product.save()
+            messages.success(
+                request, f"Product '{product.name}' added to {store.name}.")
             return redirect("shop:store_detail", store_id=store.id)
     else:
         form = ProductForm()
@@ -141,21 +218,22 @@ def edit_product(request, product_id):
     """
     Allows owner to edit existing products.
     """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
     product = get_object_or_404(
         Product, id=product_id, store__owner=request.user)
+
     if request.method == "POST":
         form = ProductForm(request.POST, request.FILES, instance=product)
         if form.is_valid():
             form.save()
+            messages.success(request, f"Product '{product.name}' updated.")
             return redirect("shop:store_detail", store_id=product.store.id)
     else:
         form = ProductForm(instance=product)
     return render(
-        request,
-        "shop/add_product.html",
-        {"form": form, "store": product.store,
-         "edit": True, "product": product},
-    )
+        request, "shop/edit_product.html", {"form": form, "product": product})
 
 
 @login_required
@@ -163,13 +241,18 @@ def delete_product(request, product_id):
     """
     Allows owner to delete stores products.
     """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
     product = get_object_or_404(
         Product, id=product_id, store__owner=request.user)
+
     if request.method == "POST":
         store_id = product.store.id
         product.delete()
+        messages.warning(request, f"Product '{product.name}' deleted.")
         return redirect("shop:store_detail", store_id=store_id)
-    return render(request, "shop/delete_confirm.html", {"product": product})
+    return render(request, "shop/delete_product.html", {"product": product})
 
 
 def product_list(request, category_slug=None):
@@ -180,13 +263,16 @@ def product_list(request, category_slug=None):
     categories = Category.objects.all()
     products = Product.objects.filter(store__is_active=True)
 
+    search = request.GET.get("search")
+    if search:
+        products = products.filter(name__icontains=search)
+
     if category_slug:
         category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category, store__is_active=True)
+        products = products.filter(category=category)
 
     paginator = Paginator(products, 12)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    page_obj = paginator.get_page(request.GET.get("page"))
 
     return render(
         request,
@@ -202,138 +288,137 @@ def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
 
     if request.method == "POST":
+        # get chosen options from the form
         frame = request.POST.get("frame_colour")
         size = request.POST.get("size")
         quantity = int(request.POST.get("quantity", 1))
 
-        # Use session for cart
+        # get or create cart in session
         cart = request.session.get("cart", {})
-        cart_key = f"{product.id}:{frame}:{size}"
-        if cart_key in cart:
-            cart[cart_key]["quantity"] += quantity
+
+        # use a unique key for the product + frame + size
+        key = f"{product.id}-{frame}-{size}"
+
+        if key in cart:
+            cart[key]["quantity"] += quantity
         else:
-            cart[cart_key] = {
+            cart[key] = {
                 "product_id": product.id,
-                "name": product.name,
                 "frame": frame,
                 "size": size,
-                "price": str(product.price),
                 "quantity": quantity,
-                "image": product.image.url if product.image else None,
             }
+
         request.session["cart"] = cart
         request.session.modified = True
-        return redirect("shop:cart")
+
+        messages.success(
+            request, f"{quantity} x {product.name} added to cart.")
+        return redirect("shop:product_detail", product_id=product.id)
 
     return render(request, "shop/product_detail.html", {"product": product})
 
 
-def cart_view(request):
+def show_cart(request):
     """
     View for showing the current user's cart.
     """
     cart = request.session.get("cart", {})
-    total = sum(
-        float(item["price"]) * item["quantity"] for item in cart.values())
-    return render(request, "shop/cart.html", {"cart": cart, "total": total})
+    items, total = [], Decimal("0.00")
+
+    for entry in cart.values():
+        product = get_object_or_404(Product, id=entry["product_id"])
+        subtotal = product.price * entry["quantity"]
+        total += subtotal
+        items.append(
+            {"product": product, "frame": entry["frame"],
+             "size": entry["size"], "quantity": entry["quantity"],
+             "subtotal": subtotal}
+        )
+
+    return render(request, "shop/cart.html", {"items": items, "total": total})
 
 
-@require_POST
-def update_cart(request, cart_key):
+def update_cart(request):
     """
-    Allows user to update quantity of an item in the cart.
+    Allows users to update or remove items in cart.
     """
-    cart = request.session.get("cart", {})
-    if cart_key in cart:
-        quantity = int(request.POST.get("quantity", 1))
-        if quantity > 0:
-            cart[cart_key]["quantity"] = quantity
-        else:
-            # if quantity is 0, remove the item
-            cart.pop(cart_key)
+    if request.method == "POST":
+        key = request.POST.get("key")
+        qty = int(request.POST.get("quantity", 0))
+        cart = request.session.get("cart", {})
+        if key in cart:
+            if qty > 0:
+                cart[key]["quantity"] = qty
+                messages.success(request, "Cart updated.")
+            else:
+                del cart[key]
+                messages.info(request, "Item removed from cart.")
         request.session["cart"] = cart
         request.session.modified = True
-    return redirect("shop:cart")
-
-
-@require_POST
-def remove_from_cart(request, cart_key):
-    """
-    Allows users to remove an item from the cart.
-    """
-    cart = request.session.get("cart", {})
-    if cart_key in cart:
-        cart.pop(cart_key)
-        request.session["cart"] = cart
-        request.session.modified = True
-    return redirect("shop:cart")
+    return redirect("shop:show_cart")
 
 
 @login_required
 def checkout(request):
     """
-    Checkout view. Users will need to login.
+    Checkout for users toc omplete their order order and send
+    confirmation email.
     """
     cart = request.session.get("cart", {})
     if not cart:
-        return redirect("shop:cart")
-
-    total = sum(
-        Decimal(item["price"]) * item["quantity"] for item in cart.values())
+        messages.error(request, "Your cart is empty.")
+        return redirect("shop:product_list")
 
     if request.method == "POST":
-        # Create the order
-        order = Order.objects.create(user=request.user, total=total)
+        # create the order
+        order = Order.objects.create(user=request.user, total=0)
+        total = Decimal("0.00")
 
-        # Create order items
-        for item in cart.values():
-            product = Product.objects.get(id=item["product_id"])
+        # add items to the order
+        for entry in cart.values():
+            product = get_object_or_404(Product, id=entry["product_id"])
+            qty = entry["quantity"]
+            subtotal = product.price * qty
+            total += subtotal
+
             OrderItem.objects.create(
                 order=order,
                 product=product,
-                frame_colour=item["frame"],
-                size=item["size"],
-                quantity=item["quantity"],
-                price=Decimal(item["price"]),
+                quantity=qty,
+                price=subtotal,
+                frame_colour=entry["frame"],
+                size=entry["size"],
             )
 
-        # Send email confirmation
-        subject = (
-            f"Order Confirmation - {settings.SITE_NAME} (Order #{order.id})")
-        message = f"Thank you {order.user.full_name},\n\n"
-        message += (f"Your order with {settings.SITE_URL} has been placed "
-                    f"successfully.\n\n")
-        message += "Items:\n"
-        for item in order.items.all():
-            message += (f"- {item.quantity} x {item.product.name} "
-                        f"({item.frame_colour}/{item.size}) @ £{item.price}\n")
-        message += f"\nTotal: £{order.total}\n\n"
-        message += "We'll contact you when your order is dispatched.\n"
-        message += "\nCeluvia Images"
+        # update order total
+        order.total = total
+        order.save()
 
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,
-            [order.user.email],
-            fail_silently=False,
-        )
+        # send confirmation email
+        subject = f"Celuvia Images - Order Confirmation #{order.id}"
+        html_body = render_to_string(
+            "emails/order_confirmation_email.html", {"order": order})
 
-        # Clear cart
+        email = EmailMessage(subject, html_body, None, [order.user.email])
+        email.content_subtype = "html"
+        email.send(fail_silently=True)
+
+        # clear the cart
         request.session["cart"] = {}
         request.session.modified = True
 
-        return render(
-            request, "shop/order_confirmation.html", {"order": order})
+        messages.success(request, f"Order #{order.id} placed successfully.")
+        return redirect("shop:my_orders")
 
-    return render(
-        request, "shop/checkout.html", {"cart": cart, "total": total})
+    return render(request, "shop/checkout.html")
 
 
 @login_required
 def add_review(request, product_id):
     """
-    Allows users to review products"""
+    Allows users to review products.
+    """
     product = get_object_or_404(Product, id=product_id)
     if request.method == "POST":
         form = ReviewForm(request.POST)
@@ -352,6 +437,40 @@ def add_review(request, product_id):
         form = ReviewForm()
     return render(
         request, "shop/add_review.html", {"form": form, "product": product})
+
+
+@login_required
+def edit_review(request, review_id):
+    """
+    Allows users to edit their review.
+    """
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    if request.method == "POST":
+        form = ReviewForm(request.POST, instance=review)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Review updated.")
+            return redirect(
+                "shop:product_detail", product_id=review.product.id)
+
+    else:
+        form = ReviewForm(instance=review)
+    return render(request, "shop/edit_review.html",
+                  {"form": form, "review": review})
+
+
+@login_required
+def delete_review(request, review_id):
+    """
+    Allows users to delete their review.
+    """
+    review = get_object_or_404(Review, id=review_id, user=request.user)
+    if request.method == "POST":
+        product_id = review.product.id
+        review.delete()
+        messages.success(request, "Review deleted.")
+        return redirect("shop:product_detail", product_id=product_id)
+    return render(request, "shop/delete_review.html", {"review": review})
 
 
 @login_required

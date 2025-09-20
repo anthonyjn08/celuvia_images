@@ -1,0 +1,9 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+    <div class="container my-5">
+    <h2>Invalid or Expired Link</h2>
+    <p>Your password reset link is invalid or has expired. Please try again.</p>
+    <a href="{% url 'accounts:request_password_reset' %}" class="btn btn-primary">Request New Link</a>
+</div>
+{% endblock %}

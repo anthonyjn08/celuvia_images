@@ -1,0 +1,14 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>Close Store</h2>
+    <p>Are you sure you want to close <strong>{{ store.name }}</strong>?<br>
+        Closing a store keeps order history intact but prevents new sales.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Close Store</button>
+        <a href="{% url 'shop:vendor_dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

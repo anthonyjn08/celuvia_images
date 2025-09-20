@@ -2,7 +2,6 @@ from django.db import models
 from django.conf import settings
 from django.utils.timezone import now
 from django.db.models import Avg
-from accounts.models import User
 
 
 class Store(models.Model):
@@ -15,10 +14,11 @@ class Store(models.Model):
         - description: TextField for a short description of the store.
     """
     owner = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="stores")
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="stores")
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
-    email = models.EmailField()
+    email = models.EmailField(max_length=100)
     phone_number = models.CharField(max_length=20)
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
@@ -40,7 +40,10 @@ class Category(models.Model):
         - slug: SlugField, unique, used for URLs and category lookups.
     """
     name = models.CharField(max_length=100, unique=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(max_length=120, unique=True)
+
+    class Meta:
+        verbose_name_plural = "Categories"
 
     def __str__(self):
         return self.name
@@ -88,7 +91,8 @@ class Product(models.Model):
     store = models.ForeignKey(
         Store, on_delete=models.CASCADE, related_name="products")
     category = models.ForeignKey(
-        Category, on_delete=models.SET_NULL, null=True, blank=True)
+        Category, on_delete=models.SET_NULL, null=True,
+        blank=True, related_name="products")
     name = models.CharField(max_length=200)
     frame_colour = models.CharField(max_length=20, choices=FRAME_CHOICES)
     size = models.CharField(max_length=20, choices=SIZE_CHOICES)
@@ -122,6 +126,9 @@ class Review(models.Model):
     """
     Model for buyer reviews of products.
 
+    RATINGE_CHOICES:
+        - Available star ratings for the product.
+
     Fields:
         - product: ForeignKey linking to the reviewed Product.
         - user: ForeignKey linking to the reviewing User.
@@ -139,7 +146,9 @@ class Review(models.Model):
     ]
     product = models.ForeignKey(
         Product, on_delete=models.CASCADE, related_name="reviews")
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name="reviews")
     rating = models.IntegerField(default=5, choices=RATING_CHOICES)
     comment = models.TextField(blank=True)
     verified = models.BooleanField(default=False)
@@ -157,33 +166,48 @@ class Order(models.Model):
     Model representing a buyer's order.
 
     Fields:
-        - buyer: ForeignKey to the User who placed the order.
+        - user: ForeignKey to the User who placed the order.
         - created_at: DateTimeField for when the order was placed.
-        - total: DecimalField for the order total amount.
-        - email_sent: BooleanField, True if invoice email has been sent.
+        - status: CharField for the order shipping status.
     """
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("processing", "Processing"),
+        ("shipped", "Shipped"),
+        ("delivered", "Delivered"),
+    ]
+
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
-        related_name="orders")
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE, related_name="orders")
     created_at = models.DateTimeField(auto_now_add=True)
-    total = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default="pending")
 
     def __str__(self):
-        return f"Order {self.id} by {self.user.full_name} - £{self.total}"
+        return f"Order {self.id} by {self.user.full_name}"
 
 
 class OrderItem(models.Model):
     """
     Individual items in an order.
+
+    Fields:
+        - order: ForeignKey, the order from Mrder model.
+        - product: ForeignKey, the product from the Product model.
+        - quantity: PositiveIntegerField, quantity ordered.
+        - frame_colour: CharField, frame colour.
+        - size: CharField, frame size.
     """
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="items")
     product = models.ForeignKey(
-        "Product", on_delete=models.SET_NULL, null=True)
-    frame_colour = models.CharField(max_length=20, default="black")
-    size = models.CharField(max_length=20, default="medium")
-    quantity = models.PositiveIntegerField()
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+        Product, on_delete=models.CASCADE, related_name="order_items")
+    quantity = models.PositiveIntegerField(default=1)
+    frame_colour = models.CharField(
+        max_length=20, choices=Product.FRAME_CHOICES, default="black")
+    size = models.CharField(
+        max_length=20, choices=Product.SIZE_CHOICES, default="small")
 
     def __str__(self):
         return (
