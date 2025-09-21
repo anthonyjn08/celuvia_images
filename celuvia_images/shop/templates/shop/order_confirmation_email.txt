@@ -1,11 +1,22 @@
-Hello {{ order.user.full_name }},
+Hi {{ order.user.full_name }},
 
-Thank you for your order #{{ order.id }} placed on {{ order.created_at|date:"j M Y, H:i" }}.
+Thank you for your order with Celuvia Images!
 
-Order summary:
+Order Number: {{ order.id }}
+Date: {{ order.created_at|date:"j M Y, H:i" }}
+
+Items:
 {% for item in order.items.all %}
-- {{ item.quantity }} × {{ item.product.name }} ({{ item.frame_colour }}/{{ item.size }}) – £{{ item.product.price }}
+- {{ item.quantity }} × {{ item.product.name }} 
+  Size: {{ item.get_size_display }} 
+  Frame: {{ item.frame_colour }}
+  Price: £{{ item.price }}
+  Subtotal: £{{ item.get_subtotal|floatformat:2 }}
 {% endfor %}
 
-We will notify you when your order status changes.
-Thank you for shopping with Celuvia Images!
+Total: £{{ order.total|floatformat:2 }}
+
+We’ll notify you once your order is on its way.  
+
+Thank you for shopping with us,  
+The Celuvia Images Team

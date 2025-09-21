@@ -32,7 +32,7 @@ class BuyerSignUpForm(UserCreationForm):
             ]
         widgets = {
             "first_name": forms.TextInput(
-                attrs={"class": "form-control"}),
+                attrs={"class": "form-control", "autofocus": True}),
             "last_name": forms.TextInput(
                 attrs={"class": "form-control"}),
             "email": forms.EmailInput(
@@ -83,7 +83,7 @@ class VendorSignUpForm(UserCreationForm):
             ]
         widgets = {
             "first_name": forms.TextInput(
-                attrs={"class": "form-control"}),
+                attrs={"class": "form-control", "autofocus": True}),
             "last_name": forms.TextInput(
                 attrs={"class": "form-control"}),
             "email": forms.EmailInput(

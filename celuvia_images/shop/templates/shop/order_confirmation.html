@@ -2,18 +2,38 @@
 {% load static %}
 {% block content %}
 <div class="container my-5">
-    <h2>Thank you for your order!</h2>
-    <p>Your order <strong>#{{ order.id }}</strong> has been placed successfully.</p>
+    <h2>Order Confirmation</h2>
+    <p>Thank you for your purchase, {{ order.user.full_name }}!</p>
 
-    <h4>Order Summary</h4>
-    <ul class="list-group mb-3">
-        {% for item in order.items.all %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                {{ item.quantity }} x {{ item.product.name }} ({{ item.frame_colour }}/{{ item.size }})
-                <span>£{{ item.product.price }}</span>
-            </li>
-        {% endfor %}
-    </ul>
+    <h4>Order #{{ order.id }}</h4>
+    <p>Placed on {{ order.created_at|date:"j M Y, H:i" }}</p>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Size</th>
+                <th>Frame Colour</th>
+                <th>Quantity</th>
+                <th>Price</th>
+                <th>Subtotal</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in order.items.all %}
+            <tr>
+                <td>{{ item.product.name }}</td>
+                <td>{{ item.get_size_display }}</td>
+                <td>{{ item.frame_colour }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>£{{ item.price }}</td>
+                <td>£{{ item.get_subtotal|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h4>Total: £{{ order.total|floatformat:2 }}</h4>
 
     <p>A confirmation email has been sent to <strong>{{ order.user.email }}</strong>.</p>
     <a href="{% url 'shop:home' %}" class="btn btn-primary">Continue Shopping</a>

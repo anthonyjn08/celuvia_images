@@ -3,6 +3,13 @@ from django.conf import settings
 from django.utils.timezone import now
 from django.db.models import Avg
 
+FRAME_CHOICES = [
+        ("Black", "Black"),
+        ("Oak", "Oak"),
+        ("Silver", "Silver"),
+        ("White", "White"),
+    ]
+
 
 class Store(models.Model):
     """
@@ -53,60 +60,37 @@ class Product(models.Model):
     """
     Model representing a framed image product.
 
-    FRAME_CHOICES:
-        - Available frame color options for the product.
-
-    SIZE_CHOICES:
-        - Available size options for the product.
-
     Fields:
         - store: ForeignKey linking product to the vendor's Store.
         - category: ForeignKey linking product to a Category (nullable).
         - name: CharField for the product's name (max length 200).
-        - frame_colour: CharField with choices from FRAME_CHOICES.
-        - size: CharField with choices from SIZE_CHOICES.
         - description: TextField for the product description.
         - image: ImageField storing uploaded product images.
-        - price: DecimalField for product price (max 10 digits, 2 decimal
-          places).
-        - stock: PositiveIntegerField tracking product stock level.
         - created_at: DateTimeField set when the product is created.
 
     Meta:
         - unique_together: Prevents duplicate product variations in same store.
     """
-    FRAME_CHOICES = [
-        ("black", "Black"),
-        ("white", "White"),
-        ("silver", "Silver"),
-        ("oak", "Oak"),
-    ]
-
-    SIZE_CHOICES = [
-        ("small", "30x40cm"),
-        ("medium", "50x70cm"),
-        ("large", "70x100cm"),
-    ]
-
     store = models.ForeignKey(
         Store, on_delete=models.CASCADE, related_name="products")
     category = models.ForeignKey(
         Category, on_delete=models.SET_NULL, null=True,
         blank=True, related_name="products")
     name = models.CharField(max_length=200)
-    frame_colour = models.CharField(max_length=20, choices=FRAME_CHOICES)
-    size = models.CharField(max_length=20, choices=SIZE_CHOICES)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="products/")
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ("store", "name", "frame_colour", "size")
+        unique_together = ("store", "name")
+
+    def get_min_price(self):
+        size = self.sizes.order_by("price").first()
+        return size.price if size else None
 
     def __str__(self):
-        return f"{self.name} - {self.frame_colour}/{self.size}"
+        return self.name
 
     def get_average_rating(self):
         """
@@ -120,6 +104,30 @@ class Product(models.Model):
         Returns the total number of reviews for this product.
         """
         return self.reviews.count()
+
+
+class Size(models.Model):
+    """
+    Model for prcing images by size.
+
+    Fields:
+        - Product: OneToOneField, product from the Product list to set
+          prices for.
+        - small_price: DecimalField, price of small image
+        - medium_price: DecimalField, price of medium image
+        - large_price: DecimalField, price of large image
+    """
+    product = models.OneToOneField(
+        Product, on_delete=models.CASCADE, related_name="sizes")
+    small_price = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True)
+    medium_price = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True)
+    large_price = models.DecimalField(
+        max_digits=8, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"Sizes for {self.product.name}"
 
 
 class Review(models.Model):
@@ -165,6 +173,9 @@ class Order(models.Model):
     """
     Model representing a buyer's order.
 
+    STATUS_CHOICES:
+        - Status of order
+
     Fields:
         - user: ForeignKey to the User who placed the order.
         - created_at: DateTimeField for when the order was placed.
@@ -192,25 +203,40 @@ class OrderItem(models.Model):
     """
     Individual items in an order.
 
+    SIZE_CHOICES:
+        - Available size options for the product.
+
+    FRAME_CHOICES:
+        - Available frame color options for the product.
+
     Fields:
         - order: ForeignKey, the order from Mrder model.
         - product: ForeignKey, the product from the Product model.
         - quantity: PositiveIntegerField, quantity ordered.
         - frame_colour: CharField, frame colour.
         - size: CharField, frame size.
+        - price: DecimalField, item price
     """
+    SIZE_CHOICES = [
+        ("S", "Small"),
+        ("M", "Medium"),
+        ("L", "Large"),
+    ]
     order = models.ForeignKey(
         Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(
-        Product, on_delete=models.CASCADE, related_name="order_items")
-    quantity = models.PositiveIntegerField(default=1)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
     frame_colour = models.CharField(
-        max_length=20, choices=Product.FRAME_CHOICES, default="black")
+        max_length=20, choices=FRAME_CHOICES)
     size = models.CharField(
-        max_length=20, choices=Product.SIZE_CHOICES, default="small")
+        max_length=2, choices=SIZE_CHOICES)
+    quantity = models.PositiveIntegerField(default=1)
+    price = models.DecimalField(max_digits=8, decimal_places=2)
+
+    def get_subtotal(self):
+        return self.price * self.quantity
 
     def __str__(self):
         return (
             f"{self.quantity} x {self.product.name} "
-            f"({self.frame_colour}/{self.size})"
+            f"({self.size}/{self.frame_colour})"
             )

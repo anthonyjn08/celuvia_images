@@ -29,8 +29,10 @@ urlpatterns = [
          views.add_product, name="add_product"),
     path("vendor/products/<int:product_id>/edit/",
          views.edit_product, name="edit_product"),
-    path("vendor/products/<int:product_id>/delete/",
-         views.delete_product, name="delete_product"),
+    path("stores/<int:store_id>/products/<int:product_id>/archive/",
+         views.archive_product, name="archive_product"),
+    path("stores/<int:store_id>/products/<int:product_id>/unarchive/",
+         views.unarchive_product, name="unarchive_product"),
 
     # Vendor orders
     path("vendor/orders/", views.vendor_orders, name="vendor_orders"),

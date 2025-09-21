@@ -1,6 +1,6 @@
 {% extends "shop/base.html" %}
 {% load static %}
-(% block content %)
+{% block content %}
 <div class="container my-5">
     <h2>Vendor Dashboard</h2>
     <p class="lead">Manage your stores and products</p>
@@ -32,7 +32,7 @@
             {% endfor %}
         </div>
     {% else %}
-        <p>You don’t have any stores yet.</p>
+        <p>You don't have any stores yet.</p>
     {% endif %}
 </div>
 {% endblock %}

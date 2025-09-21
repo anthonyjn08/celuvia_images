@@ -7,8 +7,9 @@ from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 from decimal import Decimal
-from .models import Store, Product, Category, Order, OrderItem, Review
-from .forms import StoreForm, ProductForm, ReviewForm
+from .models import (Store, Product, Category, Order, OrderItem, Review,
+                     FRAME_CHOICES)
+from .forms import StoreForm, ProductForm, ReviewForm, SizeForm
 
 
 def home(request):
@@ -198,61 +199,157 @@ def add_product(request, store_id):
 
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES)
+        product_form = ProductForm(request.POST, request.FILES)
+        size_form = SizeForm(request.POST)
 
-        if form.is_valid():
-            product = form.save(commit=False)
+        if product_form.is_valid() and size_form.is_valid():
+            product = product_form.save(commit=False)
+
+            # check if a new category was entered
+            new_cat = product_form.cleaned_data.get("new_category")
+            if new_cat:
+                category, created = Category.objects.get_or_create(
+                    name=new_cat)
+                product.category = category
+
             product.store = store
             product.save()
-            messages.success(
-                request, f"Product '{product.name}' added to {store.name}.")
+
+            # save size info
+            size = size_form.save(commit=False)
+            size.product = product
+            size.save()
+
+            messages.success(request,
+                             f"Product '{product.name}' added successfully.")
             return redirect("shop:store_detail", store_id=store.id)
     else:
-        form = ProductForm()
-    return render(request, "shop/add_product.html",
-                  {"form": form, "store": store})
+        product_form = ProductForm()
+        size_form = SizeForm()
+
+    return render(
+        request,
+        "shop/add_product.html",
+        {"product_form": product_form, "size_form": size_form, "store": store},
+    )
 
 
 @login_required
-def edit_product(request, product_id):
+def edit_product(request, store_id, product_id):
     """
     Allows owner to edit existing products.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
 
-    product = get_object_or_404(
-        Product, id=product_id, store__owner=request.user)
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    product = get_object_or_404(Product, id=product_id, store=store)
+    size = getattr(product, "size", None)  # assumes related size object exists
 
     if request.method == "POST":
-        form = ProductForm(request.POST, request.FILES, instance=product)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"Product '{product.name}' updated.")
-            return redirect("shop:store_detail", store_id=product.store.id)
+        product_form = ProductForm(
+            request.POST, request.FILES, instance=product)
+        size_form = SizeForm(request.POST, instance=size)
+
+        if product_form.is_valid() and size_form.is_valid():
+            product = product_form.save(commit=False)
+
+            # handle new category if entered
+            new_cat = product_form.cleaned_data.get("new_category")
+            if new_cat:
+                category, _ = Category.objects.get_or_create(name=new_cat)
+                product.category = category
+
+            product.store = store
+            product.save()
+
+            size = size_form.save(commit=False)
+            size.product = product
+            size.save()
+
+            messages.success(
+                request, f"Product '{product.name}' updated successfully.")
+            return redirect("shop:store_detail", store_id=store.id)
     else:
-        form = ProductForm(instance=product)
+        product_form = ProductForm(instance=product)
+        size_form = SizeForm(instance=size)
+
     return render(
-        request, "shop/edit_product.html", {"form": form, "product": product})
+        request,
+        "shop/edit_product.html",
+        {
+            "store": store,
+            "product": product,
+            "product_form": product_form,
+            "size_form": size_form,
+        },
+    )
+
+
+# @login_required
+# def delete_product(request, product_id):
+#     """
+#     Allows owner to delete stores products.
+#     """
+#     if not request.user.is_vendor():
+#         return HttpResponseForbidden()
+
+#     product = get_object_or_404(
+#         Product, id=product_id, store__owner=request.user)
+
+#     if request.method == "POST":
+#         store_id = product.store.id
+#         product.delete()
+#         messages.warning(request, f"Product '{product.name}' deleted.")
+#         return redirect("shop:store_detail", store_id=store_id)
+#     return render(request, "shop/delete_product.html", {"product": product})
 
 
 @login_required
-def delete_product(request, product_id):
+def archive_product(request, store_id, product_id):
     """
-    Allows owner to delete stores products.
+    Archive a product so it's no longer available to buy
+    but is kept for order history.
     """
-    if not request.user.is_vendor():
-        return HttpResponseForbidden()
-
-    product = get_object_or_404(
-        Product, id=product_id, store__owner=request.user)
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    product = get_object_or_404(Product, id=product_id, store=store)
 
     if request.method == "POST":
-        store_id = product.store.id
-        product.delete()
-        messages.warning(request, f"Product '{product.name}' deleted.")
-        return redirect("shop:store_detail", store_id=store_id)
-    return render(request, "shop/delete_product.html", {"product": product})
+        product.is_active = False
+        product.save()
+        messages.success(request,
+                         f"Product '{product.name}' archived successfully.")
+        return redirect("shop:store_detail", store_id=store.id)
+
+    return render(
+        request,
+        "shop/archive_product.html",
+        {"store": store, "product": product},
+    )
+
+
+@login_required
+def unarchive_product(request, store_id, product_id):
+    """
+    Unarchive a product so it becomes available to buy again.
+    """
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    product = get_object_or_404(Product, id=product_id, store=store)
+
+    if request.method == "POST":
+        product.is_active = True
+        product.save()
+        messages.success(request, (f"Product '{product.name}' has been "
+                                   f"unarchived and is now available "
+                                   f"for purchase."))
+
+        return redirect("shop:store_detail", store_id=store.id)
+
+    return render(
+        request,
+        "shop/unarchive_product.html",
+        {"store": store, "product": product},
+    )
 
 
 def product_list(request, category_slug=None):
@@ -288,55 +385,125 @@ def product_detail(request, product_id):
     product = get_object_or_404(Product, id=product_id)
 
     if request.method == "POST":
-        # get chosen options from the form
         frame = request.POST.get("frame_colour")
         size = request.POST.get("size")
         quantity = int(request.POST.get("quantity", 1))
 
-        # get or create cart in session
-        cart = request.session.get("cart", {})
-
-        # use a unique key for the product + frame + size
-        key = f"{product.id}-{frame}-{size}"
-
-        if key in cart:
-            cart[key]["quantity"] += quantity
+        # price lookup by size
+        if size == "S":
+            price = product.price_small
+        elif size == "M":
+            price = product.price_medium
+        elif size == "L":
+            price = product.price_large
         else:
-            cart[key] = {
+            messages.error(request, "Invalid size selected.")
+            return redirect("shop:product_detail", product_id=product.id)
+
+        cart = request.session.get("cart", [])
+
+        found = False
+        for entry in cart:
+            if (
+                entry["product_id"] == product.id
+                and entry["frame_colour"] == frame
+                and entry["size"] == size
+            ):
+                entry["quantity"] += quantity
+                found = True
+                break
+
+        if not found:
+            cart.append({
                 "product_id": product.id,
-                "frame": frame,
+                "frame_colour": frame,
                 "size": size,
                 "quantity": quantity,
-            }
+                "price": str(price),
+            })
 
         request.session["cart"] = cart
         request.session.modified = True
 
         messages.success(
-            request, f"{quantity} x {product.name} added to cart.")
+            request,
+            f"{quantity} x {product.name} ({size}, {frame}) added to cart."
+        )
         return redirect("shop:product_detail", product_id=product.id)
 
-    return render(request, "shop/product_detail.html", {"product": product})
+    return render(request, "shop/product_detail.html", {
+        "product": product,
+        "FRAME_CHOICES": FRAME_CHOICES,
+    })
 
 
+@login_required
 def show_cart(request):
     """
     View for showing the current user's cart.
     """
-    cart = request.session.get("cart", {})
+    cart = request.session.get("cart", [])
     items, total = [], Decimal("0.00")
 
-    for entry in cart.values():
+    for entry in cart:
         product = get_object_or_404(Product, id=entry["product_id"])
-        subtotal = product.price * entry["quantity"]
+        price = Decimal(entry["price"])
+        quantity = int(entry["quantity"])
+        subtotal = price * quantity
         total += subtotal
-        items.append(
-            {"product": product, "frame": entry["frame"],
-             "size": entry["size"], "quantity": entry["quantity"],
-             "subtotal": subtotal}
-        )
+
+        items.append({
+            "product": product,
+            "size": entry["size"],
+            "frame_colour": entry["frame_colour"],
+            "quantity": quantity,
+            "price": price,
+        })
 
     return render(request, "shop/cart.html", {"items": items, "total": total})
+
+
+@login_required
+def add_to_cart(request, product_id):
+    """
+    View to add items to cart.
+    """
+    product = get_object_or_404(Product, id=product_id)
+    size = request.POST.get("size")
+    frame_colour = request.POST.get("frame_colour")
+    quantity = int(request.POST.get("quantity", 1))
+
+    # Look up price from Size model
+    price = None
+    if size == "S":
+        price = product.sizes.small_price
+    elif size == "M":
+        price = product.sizes.medium_price
+    elif size == "L":
+        price = product.sizes.large_price
+
+    if price is None:
+        messages.error(request, "Invalid size selected.")
+        return redirect("shop:product_detail", product_id=product.id)
+
+    cart = request.session.get("cart", [])
+
+    # Append new cart item
+    cart.append({
+        "product_id": product.id,
+        "name": product.name,
+        "size": size,
+        "frame_colour": frame_colour,
+        "quantity": quantity,
+        "price": str(price),  # JSON serialisable
+    })
+
+    request.session["cart"] = cart
+    request.session.modified = True
+
+    messages.success(
+        request, f"Added {product.name} ({size}/{frame_colour}) to cart.")
+    return redirect("shop:view_cart")
 
 
 def update_cart(request):
@@ -362,13 +529,13 @@ def update_cart(request):
 @login_required
 def checkout(request):
     """
-    Checkout for users toc omplete their order order and send
+    Checkout for users to complete their order and send
     confirmation email.
     """
-    cart = request.session.get("cart", {})
+    cart = request.session.get("cart", [])
     if not cart:
         messages.error(request, "Your cart is empty.")
-        return redirect("shop:product_list")
+        return redirect("shop:show_cart")
 
     if request.method == "POST":
         # create the order
@@ -376,40 +543,43 @@ def checkout(request):
         total = Decimal("0.00")
 
         # add items to the order
-        for entry in cart.values():
-            product = get_object_or_404(Product, id=entry["product_id"])
-            qty = entry["quantity"]
-            subtotal = product.price * qty
-            total += subtotal
+        for entry in cart:
+            product = Product.objects.get(id=entry["product_id"])
+            price = Decimal(entry["price"])
+            quantity = int(entry["quantity"])
 
             OrderItem.objects.create(
                 order=order,
                 product=product,
-                quantity=qty,
-                price=subtotal,
-                frame_colour=entry["frame"],
                 size=entry["size"],
+                frame_colour=entry["frame_colour"],
+                quantity=quantity,
+                price=price,
             )
 
-        # update order total
+            total += price * quantity
+
         order.total = total
         order.save()
 
         # send confirmation email
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
         html_body = render_to_string(
-            "emails/order_confirmation_email.html", {"order": order})
+            "shop/order_confirmation_email.txt", {"order": order}
+        )
 
         email = EmailMessage(subject, html_body, None, [order.user.email])
         email.content_subtype = "html"
         email.send(fail_silently=True)
 
         # clear the cart
-        request.session["cart"] = {}
+        request.session["cart"] = []
         request.session.modified = True
 
         messages.success(request, f"Order #{order.id} placed successfully.")
-        return redirect("shop:my_orders")
+
+        return render(
+            request, "shop/order_confirmation.html", {"order": order})
 
     return render(request, "shop/checkout.html")
 
