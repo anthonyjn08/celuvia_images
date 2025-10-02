@@ -13,3 +13,6 @@ venv/
 
 # Database
 *.db
+
+# API keys
+.env
