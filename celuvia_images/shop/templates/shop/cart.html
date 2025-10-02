@@ -3,43 +3,59 @@
 {% block content %}
 <div class="container my-5">
     <h2>Your Cart</h2>
-    {% if cart %}
-        <table class="table table-striped">
-            <thead>
+
+    {% if items %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
                     <tr>
-                    <th>Product</th>
-                    <th>Size</th>
-                    <th>Frame Colour</th>
-                    <th>Quantity</th>
-                    <th>Price</th>
-                    <th>Subtotal</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in items %}
-                <tr>
-                    <td>{{ item.product.name }}</td>
-                    <td>
-                        {% if item.size == "S" %}Small
-                        {% elif item.size == "M" %}Medium
-                        {% elif item.size == "L" %}Large
-                        {% else %}{{ item.size }}{% endif %}
-                    </td>
-                    <td>{{ item.frame_colour }}</td>
-                    <td>{{ item.quantity }}</td>
-                    <td>£{{ item.price }}</td>
-                    <td>£{{ item.subtotal|floatformat:2 }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <h4>Total: £{{ total|floatformat:2 }}</h4>
-        <form method="post" action="{% url 'shop:checkout' %}">
-        {% csrf_token %}
-            <button type="submit" class="btn btn-primary">Proceed to Checkout</button>
-        </form>
+                        <th>Product</th>
+                        <th>Frame</th>
+                        <th>Size</th>
+                        <th class="text-center" style="width: 80px;">Quantity</th>
+                        <th>Price</th>
+                        <th>Subtotal</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <form method="post" action="{% url 'shop:update_cart' %}">
+                            {% csrf_token %}
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.frame_colour }}</td>
+                            <td>{{ item.size }}</td>
+
+                            <td class="text-center">
+                                <input type="number" name="quantity" value="{{ item.quantity }}" min="0" class="form-control form-control-sm" style="width: 60px; margin: 0 auto;">
+                                <input type="hidden" name="key" value="{{ item.cart_key }}">
+                            </td>
+
+                            <td>£{{ item.price }}</td>
+                            <td>£{{ item.subtotal }}</td>
+
+                            <td class="text-center">
+                                <div class="d-flex flex-column flex-sm-row gap-1 justify-content-center">
+                                    <button type="submit" class="btn btn-primary btn-sm flex-fill">Update</button>
+                                    <button type="submit" class="btn btn-danger btn-sm flex-fill" name="quantity" value="0">Remove</button>
+                                </div>
+                            </td>
+                        </form>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-end mt-3">
+            <h4>Total: £{{ total }}</h4>
+            <a href="{% url 'shop:checkout' %}" class="btn btn-success">Proceed to Checkout</a>
+            <a href="{% url 'shop:product_list' %}" class="btn btn-secondary">Continue Shopping</a>
+        </div>
     {% else %}
         <p>Your cart is empty.</p>
+        <a href="{% url 'shop:product_list' %}" class="btn btn-secondary">Continue Shopping</a>
     {% endif %}
 </div>
 {% endblock %}

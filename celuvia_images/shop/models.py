@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from django.utils.timezone import now
 from django.db.models import Avg
+from django.utils.text import slugify
 
 FRAME_CHOICES = [
         ("Black", "Black"),
@@ -52,6 +53,11 @@ class Category(models.Model):
     class Meta:
         verbose_name_plural = "Categories"
 
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
 
@@ -86,8 +92,16 @@ class Product(models.Model):
         unique_together = ("store", "name")
 
     def get_min_price(self):
-        size = self.sizes.order_by("price").first()
-        return size.price if size else None
+        if not hasattr(self, "sizes"):
+            return None
+
+        prices = [
+            self.sizes.small_price,
+            self.sizes.medium_price,
+            self.sizes.large_price,
+        ]
+        prices = [p for p in prices if p is not None]
+        return min(prices) if prices else None
 
     def __str__(self):
         return self.name

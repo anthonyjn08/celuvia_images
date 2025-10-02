@@ -11,9 +11,9 @@
         <button type="submit" class="btn btn-outline-secondary">Search</button>
     </form>
     
-        <!-- Add product -->
-        <a href="{% url 'shop:add_product' store.id %}" class="btn btn-success mb-3">+ Add New Product</a>
-    
+    <!-- Add product -->
+    <a href="{% url 'shop:add_product' store.id %}" class="btn btn-success mb-3">+ Add New Product</a>
+
     <!-- Products list -->
     <h3 class="mt-4">Products</h3>
     {% if products %}

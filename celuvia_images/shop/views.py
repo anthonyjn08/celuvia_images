@@ -1,3 +1,9 @@
+import stripe
+import json
+from django.conf import settings
+from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -10,6 +16,8 @@ from decimal import Decimal
 from .models import (Store, Product, Category, Order, OrderItem, Review,
                      FRAME_CHOICES)
 from .forms import StoreForm, ProductForm, ReviewForm, SizeForm
+
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
 def home(request):
@@ -390,37 +398,34 @@ def product_detail(request, product_id):
         quantity = int(request.POST.get("quantity", 1))
 
         # price lookup by size
+        size_obj = product.sizes
         if size == "S":
-            price = product.price_small
+            price = size_obj.small_price
         elif size == "M":
-            price = product.price_medium
+            price = size_obj.medium_price
         elif size == "L":
-            price = product.price_large
+            price = size_obj.large_price
         else:
             messages.error(request, "Invalid size selected.")
             return redirect("shop:product_detail", product_id=product.id)
 
-        cart = request.session.get("cart", [])
+        cart = request.session.get("cart", {})
 
-        found = False
-        for entry in cart:
-            if (
-                entry["product_id"] == product.id
-                and entry["frame_colour"] == frame
-                and entry["size"] == size
-            ):
-                entry["quantity"] += quantity
-                found = True
-                break
+        if not isinstance(cart, dict):
+            cart = {}
 
-        if not found:
-            cart.append({
+        key = f"{product.id}-{size}-{frame}"
+
+        if key in cart:
+            cart[key]["quantity"] += quantity
+        else:
+            cart[key] = {
                 "product_id": product.id,
                 "frame_colour": frame,
                 "size": size,
                 "quantity": quantity,
                 "price": str(price),
-            })
+            }
 
         request.session["cart"] = cart
         request.session.modified = True
@@ -437,33 +442,12 @@ def product_detail(request, product_id):
     })
 
 
-@login_required
-def show_cart(request):
-    """
-    View for showing the current user's cart.
-    """
-    cart = request.session.get("cart", [])
-    items, total = [], Decimal("0.00")
-
-    for entry in cart:
-        product = get_object_or_404(Product, id=entry["product_id"])
-        price = Decimal(entry["price"])
-        quantity = int(entry["quantity"])
-        subtotal = price * quantity
-        total += subtotal
-
-        items.append({
-            "product": product,
-            "size": entry["size"],
-            "frame_colour": entry["frame_colour"],
-            "quantity": quantity,
-            "price": price,
-        })
-
-    return render(request, "shop/cart.html", {"items": items, "total": total})
+# utils function to generate cart key
+def get_cart_key(product_id, size, frame_colour):
+    """Generate a unique key for each cart item."""
+    return f"{product_id}-{size}-{frame_colour}"
 
 
-@login_required
 def add_to_cart(request, product_id):
     """
     View to add items to cart.
@@ -471,39 +455,79 @@ def add_to_cart(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     size = request.POST.get("size")
     frame_colour = request.POST.get("frame_colour")
-    quantity = int(request.POST.get("quantity", 1))
+    
+    try:
+        quantity = int(request.POST.get("quantity", 1))
+    except (ValueError, TypeError):
+        quantity = 1
 
     # Look up price from Size model
-    price = None
-    if size == "S":
-        price = product.sizes.small_price
-    elif size == "M":
-        price = product.sizes.medium_price
-    elif size == "L":
-        price = product.sizes.large_price
+    price_map = {"S": product.sizes.small_price,
+                 "M": product.sizes.medium_price,
+                 "L": product.sizes.large_price}
+    price = price_map.get(size)
 
     if price is None:
         messages.error(request, "Invalid size selected.")
         return redirect("shop:product_detail", product_id=product.id)
 
-    cart = request.session.get("cart", [])
+    cart = request.session.get("cart", {})
+    if not isinstance(cart, dict):
+        cart = {}
 
-    # Append new cart item
-    cart.append({
-        "product_id": product.id,
-        "name": product.name,
-        "size": size,
-        "frame_colour": frame_colour,
-        "quantity": quantity,
-        "price": str(price),  # JSON serialisable
-    })
+    # Generate unique cart key
+    key = get_cart_key(product.id, size, frame_colour)
+
+    # Update quantity if item already in cart
+    if key in cart:
+        cart[key]["quantity"] += quantity
+    else:
+        cart[key] = {
+            "product_id": product.id,
+            "size": size,
+            "frame_colour": frame_colour,
+            "quantity": quantity,
+            "price": str(price),  # JSON serializable
+        }
 
     request.session["cart"] = cart
     request.session.modified = True
 
-    messages.success(
-        request, f"Added {product.name} ({size}/{frame_colour}) to cart.")
-    return redirect("shop:view_cart")
+    messages.success(request, f"Added {product.name} ({size}/{frame_colour}) to cart.")
+    return redirect("shop:show_cart")
+
+
+def show_cart(request):
+    """
+    View for showing the current user's cart.
+    """
+    cart = request.session.get("cart", {})
+
+    if not isinstance(cart, dict):
+        cart = {}
+
+    items, total = [], Decimal("0.00")
+
+    for key, entry in cart.items():
+        product = get_object_or_404(Product, id=entry["product_id"])
+        price = Decimal(entry["price"])
+        subtotal = price * entry["quantity"]
+        total += subtotal
+
+        # Generate cart_key for template
+        cart_key = f"{product.id}-{entry['size']}-{entry['frame_colour']}"
+
+        items.append({
+            "product": product,
+            "size": entry["size"],
+            "frame_colour": entry["frame_colour"],
+            "quantity": entry["quantity"],
+            "subtotal": subtotal,
+            "price": price,
+            "cart_key": cart_key,  # add this
+        })
+
+    return render(request, "shop/cart.html", {"items": items, "total": total})
 
 
 def update_cart(request):
@@ -511,77 +535,234 @@ def update_cart(request):
     Allows users to update or remove items in cart.
     """
     if request.method == "POST":
-        key = request.POST.get("key")
-        qty = int(request.POST.get("quantity", 0))
         cart = request.session.get("cart", {})
+        if not isinstance(cart, dict):
+            cart = {}
+
+        key = request.POST.get("key", "").strip()
+        try:
+            qty = int(request.POST.get("quantity", 0))
+        except ValueError:
+            qty = 0
+
         if key in cart:
             if qty > 0:
                 cart[key]["quantity"] = qty
-                messages.success(request, "Cart updated.")
+                messages.success(request, f"Cart updated: {key} -> {qty}")
             else:
                 del cart[key]
-                messages.info(request, "Item removed from cart.")
+                messages.info(request, f"Item removed from cart: {key}")
+
         request.session["cart"] = cart
         request.session.modified = True
+
     return redirect("shop:show_cart")
+
+
+@login_required
+def create_checkout_session(request):
+    """
+    Creates a Stripe Checkout session with the current cart.
+    """
+    cart = request.session.get("cart", {}) or {}
+    if not isinstance(cart, dict) or not cart:
+        messages.error(request, "Your cart is empty.")
+        return redirect("shop:show_cart")
+
+    line_items = []
+    for entry in cart.values():
+        product = Product.objects.get(id=entry["product_id"])
+        price = int(Decimal(entry["price"]) * 100)
+
+        line_items.append({
+            "price_data": {
+                "currency": "gbp",
+                "product_data": {
+                    "name": f"{product.name} ({entry['size']}, {entry['frame_colour']})",
+                },
+                "unit_amount": price,
+            },
+            "quantity": entry["quantity"],
+        })
+
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            success_url=request.build_absolute_uri(reverse("shop:checkout_success")),
+            cancel_url=request.build_absolute_uri(reverse("shop:checkout_cancel")),
+            customer_email=request.user.email,
+            metadata={"user_id": request.user.id},
+        )
+    except stripe.error.AuthenticationError as e:
+        print("❌ Stripe authentication error:", e)
+        messages.error(request, "Payment configuration error. Please contact support.")
+        return redirect("shop:show_cart")
+
+    return redirect(checkout_session.url, code=303)
+
+
+# def handle_checkout_session(session):
+#     """
+#     Create an Order + OrderItems in the DB once payment completes.
+#     """
+#     from .models import Order, OrderItem, Product
+
+#     customer_email = session.get("customer_email")
+#     line_items = stripe.checkout.Session.list_line_items(session["id"])
+
+#     try:
+#         user = User.objects.get(email=customer_email)
+#     except User.DoesNotExist:
+#         user = None
+
+#     order = Order.objects.create(
+#         user=user,
+#         total=0,
+#     )
+
+#     order_total = Decimal("0.00")
+
+#     for item in line_items.data:
+#         name = item["description"]
+#         quantity = item["quantity"]
+#         unit_amount = Decimal(item["price"]["unit_amount"]) / 100
+
+#         try:
+#             product = Product.objects.get(name__iexact=name.split("(")[0].strip())
+#         except Product.DoesNotExist:
+#             product = None
+
+#         OrderItem.objects.create(
+#             order=order,
+#             product=product,
+#             size="N/A",
+#             frame_colour="N/A",
+#             quantity=quantity,
+#             price=unit_amount,
+#         )
+
+#         order_total += unit_amount * quantity
+
+#     order.total = order_total
+#     order.save()
+
+#     print(f"Order {order.id} created for {customer_email}")
+
 
 
 @login_required
 def checkout(request):
     """
-    Checkout for users to complete their order and send
-    confirmation email.
+    Alternate checkout entrypoint (creates a session).
     """
-    cart = request.session.get("cart", [])
-    if not cart:
+    print(settings.STRIPE_WEBHOOK_SECRET)
+    cart = request.session.get("cart", {}) or {}
+    if not isinstance(cart, dict) or not cart:
         messages.error(request, "Your cart is empty.")
         return redirect("shop:show_cart")
 
-    if request.method == "POST":
-        # create the order
-        order = Order.objects.create(user=request.user, total=0)
-        total = Decimal("0.00")
+    line_items = []
+    for entry in cart.values():
+        product = Product.objects.get(id=entry["product_id"])
+        price = int(Decimal(entry["price"]) * 100)
+        line_items.append({
+            "price_data": {
+                "currency": "gbp",
+                "product_data": {
+                    "name": f"{product.name} ({entry['size']}, {entry['frame_colour']})"
+                },
+                "unit_amount": price,
+            },
+            "quantity": entry["quantity"],
+        })
 
-        # add items to the order
-        for entry in cart:
-            product = Product.objects.get(id=entry["product_id"])
-            price = Decimal(entry["price"])
-            quantity = int(entry["quantity"])
-
-            OrderItem.objects.create(
-                order=order,
-                product=product,
-                size=entry["size"],
-                frame_colour=entry["frame_colour"],
-                quantity=quantity,
-                price=price,
-            )
-
-            total += price * quantity
-
-        order.total = total
-        order.save()
-
-        # send confirmation email
-        subject = f"Celuvia Images - Order Confirmation #{order.id}"
-        html_body = render_to_string(
-            "shop/order_confirmation_email.txt", {"order": order}
+    try:
+        session = stripe.checkout.Session.create(
+            payment_method_types=["card"],
+            line_items=line_items,
+            mode="payment",
+            customer_email=request.user.email,
+            success_url=request.build_absolute_uri("/checkout/success/"),
+            cancel_url=request.build_absolute_uri("/checkout/cancel/"),
+            metadata={"user_id": request.user.id},
         )
+    except stripe.error.AuthenticationError as e:
+        print("❌ Stripe authentication error:", e)
+        messages.error(request, "Payment configuration error. Please contact support.")
+        return redirect("shop:show_cart")
 
-        email = EmailMessage(subject, html_body, None, [order.user.email])
+    return redirect(session.url, code=303)
+
+
+@csrf_exempt
+def stripe_webhook(request):
+    """
+    Handles Stripe webhook events securely.
+    """
+    print(settings.STRIPE_WEBHOOK_SECRET)
+    print("webhook hit")
+    payload = request.body
+    sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
+    endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
+
+    try:
+        event = json.loads(payload)
+    except ValueError:
+        return HttpResponse(status=400)  # Invalid payload
+    except stripe.error.SignatureVerificationError:
+        return HttpResponse(status=400)  # Invalid signature
+
+    if event["type"] == "checkout.session.completed":
+        session = event["data"]["object"]
+        user_id = session.get("metadata", {}).get("user_id")
+
+        # Create order
+        order = Order.objects.create(user_id=user_id, total=Decimal("0.00"))
+        print(f"✅ Payment completed for session {session['id']} (user {user_id})")
+
+        # Clear cart after successful payment
+        request.session["cart"] = {}
+
+        # Send confirmation email
+        subject = f"Celuvia Images - Order Confirmation #{order.id}"
+        html_body = render_to_string("shop/order_confirmation_email.txt", {"order": order})
+        email = EmailMessage(subject, html_body, None, [session["customer_email"]])
         email.content_subtype = "html"
         email.send(fail_silently=True)
 
-        # clear the cart
-        request.session["cart"] = []
-        request.session.modified = True
+    return HttpResponse(status=200)
 
-        messages.success(request, f"Order #{order.id} placed successfully.")
 
-        return render(
-            request, "shop/order_confirmation.html", {"order": order})
+# @csrf_exempt
+# def stripe_webhook(request):
+#     payload = request.body
+#     print("payload (first 100 chars):", payload[:100])
 
-    return render(request, "shop/checkout.html")
+#     try:
+#         event = json.loads(payload)
+#     except ValueError:
+#         return HttpResponse(status=400)
+
+#     print("event:", event)
+#     return HttpResponse(status=200)
+
+
+@login_required
+def checkout_success(request):
+    """
+    View shown after successful payment.
+    """
+    return render(request, "shop/checkout_success.html")
+
+
+@login_required
+def checkout_cancel(request):
+    """
+    View if user cancels payment.
+    """
+    return render(request, "shop/checkout_cancel.html")
 
 
 @login_required

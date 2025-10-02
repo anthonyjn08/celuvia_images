@@ -1,0 +1,9 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5 text-center">
+    <h2>Payment Successful 🎉</h2>
+    <p>Thank you for your order! A confirmation email will be sent shortly.</p>
+    <a href="{% url 'shop:home' %}" class="btn btn-success">Back to Home</a>
+</div>
+{% endblock %}

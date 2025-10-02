@@ -1,0 +1,9 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5 text-center">
+    <h2>Payment Cancelled</h2>
+    <p>Your order was not completed. You can try again anytime.</p>
+    <a href="{% url 'shop:show_cart' %}" class="btn btn-warning">Return to Cart</a>
+</div>
+{% endblock %}

@@ -31,9 +31,9 @@
                     <label for="size" class="form-label">Size</label>
                     <select name="size" id="size" class="form-select" required>
                         <option value="" disabled selected>Choose a size</option>
-                        <option value="S">Small (£{{ product.price_small }})</option>
-                        <option value="M">Medium (£{{ product.price_medium }})</option>
-                        <option value="L">Large (£{{ product.price_large }})</option>
+                        <option value="S">Small (£{{ product.sizes.small_price }})</option>
+                        <option value="M">Medium (£{{ product.sizes.medium_price }})</option>
+                        <option value="L">Large (£{{ product.sizes.large_price }})</option>
                     </select>
                 </div>
 

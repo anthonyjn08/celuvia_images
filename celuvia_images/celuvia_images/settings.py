@@ -12,10 +12,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from django.contrib.messages import constants as messages
+from dotenv import load_dotenv
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load .env file
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -25,6 +30,13 @@ SECRET_KEY = "django-insecure-=o39))9z#8()@kqg+9d9r2uxpmnq4scnw#kv++jywj6@#8t*pa
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+
+# Stripe keys
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+print("Loaded Stripe Secret:", STRIPE_WEBHOOK_SECRET)
 
 ALLOWED_HOSTS = []
 
@@ -42,6 +54,7 @@ INSTALLED_APPS = [
     # Celuvia Apps
     "accounts",
     "shop",
+    "stripe",
 ]
 
 MIDDLEWARE = [
@@ -128,7 +141,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 

@@ -20,8 +20,14 @@
                         <h5 class="card-title">{{ product.name }}</h5>
 
                         <!-- Show smallest size price -->
-                        <p class="card-text">from £{{ product.get_min_price }}</p>
-                        
+                        <p class="card-text">
+                            {% if product.get_min_price %}
+                                from £{{ product.get_min_price }}
+                            {% else %}
+                                Price not available
+                            {% endif %}
+                        </p>
+
                         <!-- Rating summary -->
                         {% if product.get_average_rating %}
                             <div class="mb-2">

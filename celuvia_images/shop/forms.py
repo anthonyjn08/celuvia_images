@@ -1,5 +1,5 @@
 from django import forms
-from .models import Store, Product, Review, Size
+from .models import Store, Product, Review, Size, Category
 
 
 class StoreForm(forms.ModelForm):
@@ -37,19 +37,32 @@ class ProductForm(forms.ModelForm):
         - description: CharField, product description
         - image: ImageField, product image
     """
+    new_category = forms.CharField(
+        required=False,
+        label="New Category",
+        # help_text="If the category you need doesn't exist, enter it here.",
+        widget=forms.TextInput(attrs={"class": "form-control"})
+    )
+
     class Meta:
         model = Product
-        fields = ["category", "name", "description", "image"]
+        fields = ["name", "description", "image", "category"]
         widgets = {
-            "category": forms.TextInput(
-                attrs={"class": "form-control"}),
             "name": forms.TextInput(
                 attrs={"class": "form-control"}),
             "description": forms.TextInput(
                 attrs={"class": "form-control"}),
             "image": forms.ClearableFileInput(
                 attrs={"class": "form-control"}),
+            "category": forms.Select(
+                attrs={"class": "form-select"}),
             }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # dynamically load categories into the dropdown
+        self.fields["category"].queryset = Category.objects.all()
+        self.fields["category"].empty_label = "Choose an existing category"
 
 
 class SizeForm(forms.ModelForm):
