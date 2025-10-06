@@ -208,6 +208,12 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="pending")
+    shipping_address = models.ForeignKey("Address", on_delete=models.SET_NULL,
+                                         null=True, blank=True,
+                                         related_name="shipping_orders")
+    billing_address = models.ForeignKey("Address", on_delete=models.SET_NULL,
+                                        null=True, blank=True,
+                                        related_name="billing_orders")
 
     def __str__(self):
         return f"Order {self.id} by {self.user.full_name}"
@@ -254,3 +260,25 @@ class OrderItem(models.Model):
             f"{self.quantity} x {self.product.name} "
             f"({self.size}/{self.frame_colour})"
             )
+
+
+class Address(models.Model):
+    """
+    Stores a users delivery and billing addresses
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL,
+                             on_delete=models.CASCADE,
+                             related_name="addresses")
+    full_name = models.CharField(max_length=100)
+    address_line1 = models.CharField(max_length=250)
+    address_line2 = models.CharField(max_length=250, blank=True)
+    town = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=100)
+    postcode = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20, blank=True)
+    is_default = models.BooleanField(default=False)
+    is_shipping = models.BooleanField(default=False)
+    is_billing = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.full_name}, {self.address_line1}, {self.city}"

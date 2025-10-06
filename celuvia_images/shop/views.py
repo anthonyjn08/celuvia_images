@@ -1,5 +1,4 @@
 import stripe
-import json
 from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -14,7 +13,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 from decimal import Decimal
 from .models import (Store, Product, Category, Order, OrderItem, Review,
-                     FRAME_CHOICES)
+                     Address, FRAME_CHOICES)
 from .forms import StoreForm, ProductForm, ReviewForm, SizeForm
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
@@ -455,7 +454,7 @@ def add_to_cart(request, product_id):
     product = get_object_or_404(Product, id=product_id)
     size = request.POST.get("size")
     frame_colour = request.POST.get("frame_colour")
-    
+
     try:
         quantity = int(request.POST.get("quantity", 1))
     except (ValueError, TypeError):
@@ -493,7 +492,8 @@ def add_to_cart(request, product_id):
     request.session["cart"] = cart
     request.session.modified = True
 
-    messages.success(request, f"Added {product.name} ({size}/{frame_colour}) to cart.")
+    messages.success(
+        request, f"Added {product.name} ({size}/{frame_colour}) to cart.")
     return redirect("shop:show_cart")
 
 
@@ -524,7 +524,7 @@ def show_cart(request):
             "quantity": entry["quantity"],
             "subtotal": subtotal,
             "price": price,
-            "cart_key": cart_key,  # add this
+            "cart_key": cart_key,
         })
 
     return render(request, "shop/cart.html", {"items": items, "total": total})
@@ -564,10 +564,12 @@ def create_checkout_session(request):
     """
     Creates a Stripe Checkout session with the current cart.
     """
+    stripe.api_key = settings.STRIPE_SECRET_KEY
+
     cart = request.session.get("cart", {}) or {}
     if not isinstance(cart, dict) or not cart:
         messages.error(request, "Your cart is empty.")
-        return redirect("shop:show_cart")
+        return None
 
     line_items = []
     for entry in cart.values():
@@ -578,78 +580,47 @@ def create_checkout_session(request):
             "price_data": {
                 "currency": "gbp",
                 "product_data": {
-                    "name": f"{product.name} ({entry['size']}, {entry['frame_colour']})",
+                    "name": f"{product.name} ({entry['size']}, "
+                            f"{entry['frame_colour']})",
                 },
                 "unit_amount": price,
             },
             "quantity": entry["quantity"],
         })
 
+    # Shipping and billing data from request POST
+    shipping = request.POST.get("shipping") or {}
+    billing = request.POST.get("billing") or {}
+    same_billing = request.POST.get("same_billing") == "on"
+
+    metadata = {"user_id": request.user.id}
+    for field in ["full_name", "address_line1", "address_line2", "town",
+                  "city", "postcode", "phone"]:
+        metadata[f"shipping_{field}"] = shipping.get(field, "")
+        if same_billing:
+            metadata[f"billing_{field}"] = shipping.get(field, "")
+        else:
+            metadata[f"billing_{field}"] = billing.get(field, "")
+
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
             line_items=line_items,
             mode="payment",
-            success_url=request.build_absolute_uri(reverse("shop:checkout_success")),
-            cancel_url=request.build_absolute_uri(reverse("shop:checkout_cancel")),
+            success_url=request.build_absolute_uri(
+                reverse("shop:checkout_success")),
+            cancel_url=request.build_absolute_uri(
+                reverse("shop:checkout_cancel")),
             customer_email=request.user.email,
-            metadata={"user_id": request.user.id},
+            metadata=metadata,
         )
     except stripe.error.AuthenticationError as e:
-        print("❌ Stripe authentication error:", e)
-        messages.error(request, "Payment configuration error. Please contact support.")
-        return redirect("shop:show_cart")
+        print("Stripe authentication error:", e)
+        messages.error(request,
+                       "Payment configuration error. Contact support.")
+        return None
 
-    return redirect(checkout_session.url, code=303)
-
-
-# def handle_checkout_session(session):
-#     """
-#     Create an Order + OrderItems in the DB once payment completes.
-#     """
-#     from .models import Order, OrderItem, Product
-
-#     customer_email = session.get("customer_email")
-#     line_items = stripe.checkout.Session.list_line_items(session["id"])
-
-#     try:
-#         user = User.objects.get(email=customer_email)
-#     except User.DoesNotExist:
-#         user = None
-
-#     order = Order.objects.create(
-#         user=user,
-#         total=0,
-#     )
-
-#     order_total = Decimal("0.00")
-
-#     for item in line_items.data:
-#         name = item["description"]
-#         quantity = item["quantity"]
-#         unit_amount = Decimal(item["price"]["unit_amount"]) / 100
-
-#         try:
-#             product = Product.objects.get(name__iexact=name.split("(")[0].strip())
-#         except Product.DoesNotExist:
-#             product = None
-
-#         OrderItem.objects.create(
-#             order=order,
-#             product=product,
-#             size="N/A",
-#             frame_colour="N/A",
-#             quantity=quantity,
-#             price=unit_amount,
-#         )
-
-#         order_total += unit_amount * quantity
-
-#     order.total = order_total
-#     order.save()
-
-#     print(f"Order {order.id} created for {customer_email}")
-
+    return checkout_session
 
 
 @login_required
@@ -657,40 +628,13 @@ def checkout(request):
     """
     Alternate checkout entrypoint (creates a session).
     """
-    print(settings.STRIPE_WEBHOOK_SECRET)
     cart = request.session.get("cart", {}) or {}
-    if not isinstance(cart, dict) or not cart:
+    if not cart:
         messages.error(request, "Your cart is empty.")
         return redirect("shop:show_cart")
 
-    line_items = []
-    for entry in cart.values():
-        product = Product.objects.get(id=entry["product_id"])
-        price = int(Decimal(entry["price"]) * 100)
-        line_items.append({
-            "price_data": {
-                "currency": "gbp",
-                "product_data": {
-                    "name": f"{product.name} ({entry['size']}, {entry['frame_colour']})"
-                },
-                "unit_amount": price,
-            },
-            "quantity": entry["quantity"],
-        })
-
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=line_items,
-            mode="payment",
-            customer_email=request.user.email,
-            success_url=request.build_absolute_uri("/checkout/success/"),
-            cancel_url=request.build_absolute_uri("/checkout/cancel/"),
-            metadata={"user_id": request.user.id},
-        )
-    except stripe.error.AuthenticationError as e:
-        print("❌ Stripe authentication error:", e)
-        messages.error(request, "Payment configuration error. Please contact support.")
+    session = create_checkout_session(request)
+    if not session:
         return redirect("shop:show_cart")
 
     return redirect(session.url, code=303)
@@ -701,52 +645,68 @@ def stripe_webhook(request):
     """
     Handles Stripe webhook events securely.
     """
-    print(settings.STRIPE_WEBHOOK_SECRET)
-    print("webhook hit")
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
     endpoint_secret = settings.STRIPE_WEBHOOK_SECRET
 
     try:
-        event = json.loads(payload)
-    except ValueError:
-        return HttpResponse(status=400)  # Invalid payload
-    except stripe.error.SignatureVerificationError:
-        return HttpResponse(status=400)  # Invalid signature
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, endpoint_secret)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        user_id = session.get("metadata", {}).get("user_id")
+        metadata = session.get("metadata", {})
+        user_id = metadata.get("user_id")
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user = None
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                pass
+
+        # Shipping address
+        shipping_data = {key.replace("shipping_", ""): value
+                         for key, value in metadata.items()
+                         if key.startswith("shipping_")
+                         }
+        # Billing address
+        billing_data = {key.replace("billing_", ""): value
+                        for key, value in metadata.items()
+                        if key.startswith("billing_")
+                        }
+
+        shipping_address = Address.objects.create(user=user, **shipping_data,
+                                                  is_shipping=True)
+        if shipping_data == billing_data:
+            billing_address = shipping_address
+        else:
+            billing_address = Address.objects.create(user=user, **billing_data,
+                                                     is_billing=True)
 
         # Create order
-        order = Order.objects.create(user_id=user_id, total=Decimal("0.00"))
-        print(f"✅ Payment completed for session {session['id']} (user {user_id})")
-
-        # Clear cart after successful payment
-        request.session["cart"] = {}
+        order = Order.objects.create(user=user,
+                                     total=Decimal("0.00"),
+                                     shipping_address=shipping_address,
+                                     billing_address=billing_address)
 
         # Send confirmation email
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
-        html_body = render_to_string("shop/order_confirmation_email.txt", {"order": order})
-        email = EmailMessage(subject, html_body, None, [session["customer_email"]])
+        html_body = render_to_string("shop/order_confirmation_email.txt",
+                                     {"order": order})
+        email = EmailMessage(subject, html_body, None,
+                             [session["customer_email"]])
         email.content_subtype = "html"
         email.send(fail_silently=True)
 
+        # Clear cart
+        request.session["cart"] = {}
+
     return HttpResponse(status=200)
-
-
-# @csrf_exempt
-# def stripe_webhook(request):
-#     payload = request.body
-#     print("payload (first 100 chars):", payload[:100])
-
-#     try:
-#         event = json.loads(payload)
-#     except ValueError:
-#         return HttpResponse(status=400)
-
-#     print("event:", event)
-#     return HttpResponse(status=200)
 
 
 @login_required
