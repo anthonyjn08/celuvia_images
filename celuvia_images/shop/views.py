@@ -14,7 +14,8 @@ from django.views.decorators.http import require_POST
 from decimal import Decimal
 from .models import (Store, Product, Category, Order, OrderItem, Review,
                      Address, FRAME_CHOICES)
-from .forms import StoreForm, ProductForm, ReviewForm, SizeForm
+from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
+                    CheckoutAddressForm)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -486,7 +487,7 @@ def add_to_cart(request, product_id):
             "size": size,
             "frame_colour": frame_colour,
             "quantity": quantity,
-            "price": str(price),  # JSON serializable
+            "price": str(price),
         }
 
     request.session["cart"] = cart
@@ -569,7 +570,7 @@ def create_checkout_session(request):
     cart = request.session.get("cart", {}) or {}
     if not isinstance(cart, dict) or not cart:
         messages.error(request, "Your cart is empty.")
-        return None
+        return redirect("shop:show_cart")
 
     line_items = []
     for entry in cart.values():
@@ -580,22 +581,27 @@ def create_checkout_session(request):
             "price_data": {
                 "currency": "gbp",
                 "product_data": {
-                    "name": f"{product.name} ({entry['size']}, "
-                            f"{entry['frame_colour']})",
+                    "name": (f"{product.name} ({entry['size']}, "
+                             f"{entry['frame_colour']})"),
                 },
                 "unit_amount": price,
             },
             "quantity": entry["quantity"],
         })
 
-    # Shipping and billing data from request POST
+    # Extract shipping and billing data from POST
     shipping = request.POST.get("shipping") or {}
     billing = request.POST.get("billing") or {}
     same_billing = request.POST.get("same_billing") == "on"
 
+    # Build metadata dictionary
     metadata = {"user_id": request.user.id}
-    for field in ["full_name", "address_line1", "address_line2", "town",
-                  "city", "postcode", "phone"]:
+    address_fields = [
+        "full_name", "address_line1", "address_line2", "town",
+        "city", "postcode", "phone"
+    ]
+
+    for field in address_fields:
         metadata[f"shipping_{field}"] = shipping.get(field, "")
         if same_billing:
             metadata[f"billing_{field}"] = shipping.get(field, "")
@@ -616,9 +622,9 @@ def create_checkout_session(request):
         )
     except stripe.error.AuthenticationError as e:
         print("Stripe authentication error:", e)
-        messages.error(request,
-                       "Payment configuration error. Contact support.")
-        return None
+        messages.error(
+            request, "Payment configuration error. Contact support.")
+        return redirect("shop:show_cart")
 
     return checkout_session
 
@@ -633,11 +639,19 @@ def checkout(request):
         messages.error(request, "Your cart is empty.")
         return redirect("shop:show_cart")
 
-    session = create_checkout_session(request)
-    if not session:
-        return redirect("shop:show_cart")
+    if request.method == "POST":
+        # Create checkout session and redirect to Stripe
+        return create_checkout_session(request)
 
-    return redirect(session.url, code=303)
+    # Show empty forms for shipping and billing
+    shipping_form = CheckoutAddressForm(prefix="shipping")
+    billing_form = CheckoutAddressForm(prefix="billing")
+
+    context = {
+        "shipping_form": shipping_form,
+        "billing_form": billing_form,
+    }
+    return render(request, "shop/checkout.html", context)
 
 
 @csrf_exempt

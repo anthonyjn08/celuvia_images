@@ -1,5 +1,5 @@
 from django import forms
-from .models import Store, Product, Review, Size, Category
+from .models import Store, Product, Review, Size, Category, Address
 
 
 class StoreForm(forms.ModelForm):
@@ -88,6 +88,13 @@ class SizeForm(forms.ModelForm):
 
 
 class ReviewForm(forms.ModelForm):
+    """
+    Form for adding product reviews.
+
+    Fields:
+        - rating: IntegerField, user rating of the product
+        - comment: TextField, for user review comments
+    """
     class Meta:
         model = Review
         fields = ["rating", "comment"]
@@ -96,4 +103,50 @@ class ReviewForm(forms.ModelForm):
                 attrs={"class": "form-select"}),
             "comment": forms.Textarea(
                 attrs={"class": "form-control", "rows": 3}),
+        }
+
+
+class CheckoutAddressForm(forms.ModelForm):
+    """
+    Form for capturing user shipping or billing address during checkout.
+
+    Fields:
+        - full_name: CharField, users full name.
+        - address_line1: CharField, 1st line of address.
+        - address_line2: CharField, 2nd line of address.
+        - town: CharField, town address is located in.
+        - city: CharField, city address is located in.
+        - postcode: CharField, post code for address.
+        - phone: CharField, contact number.
+    """
+
+    class Meta:
+        model = Address
+        fields = ["full_name", "address_line1", "address_line2", "town",
+                  "city", "postcode", "phone",
+                  ]
+        widgets = {
+            "full_name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Full Name"}
+            ),
+            "address_line1": forms.TextInput(
+                attrs={"class": "form-control",
+                       "placeholder": "Address Line 1"}
+            ),
+            "address_line2": forms.TextInput(
+                attrs={"class": "form-control",
+                       "placeholder": "Address Line 2"}
+            ),
+            "town": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Town"}
+            ),
+            "city": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "City"}
+            ),
+            "postcode": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Postcode"}
+            ),
+            "phone": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Phone Number"}
+            ),
         }

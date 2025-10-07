@@ -194,6 +194,8 @@ class Order(models.Model):
         - user: ForeignKey to the User who placed the order.
         - created_at: DateTimeField for when the order was placed.
         - status: CharField for the order shipping status.
+        - shipping_address: ForeignKey, for shippnig address
+        - billing_address: ForeignKey, for billing address
     """
     STATUS_CHOICES = [
         ("pending", "Pending"),
@@ -264,7 +266,19 @@ class OrderItem(models.Model):
 
 class Address(models.Model):
     """
-    Stores a users delivery and billing addresses
+    Stores a users delivery and billing addresses.
+
+    Fields:
+        - full_name: CharField, users full name.
+        - address_line1: CharField, 1st line of address.
+        - address_line2: CharField, 2nd line of address.
+        - town: CharField, town address is located in.
+        - city: CharField, city address is located in.
+        - postcode: CharField, post code for address.
+        - phone: CharField, contact number.
+        - is_default: BooleanField, used for setting default address
+        - is_shipping: BooleanField, used for setting default shipping address
+        - is_billing: BooleanField, used for setting default billing address
     """
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE,
