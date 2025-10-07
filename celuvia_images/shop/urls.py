@@ -6,9 +6,9 @@ app_name = "shop"
 urlpatterns = [
     # Store browsing
     path("", views.home, name="home"),
+    path("categories", views.category, name="category"),
     path("category/<slug:category_slug>/",
          views.product_list, name="category_detail"),
-    path("products/", views.product_list, name="product_list"),
     path("products/category/<slug:category_slug>/",
          views.product_list, name="product_list_by_category"),
     path("products/<int:product_id>/",

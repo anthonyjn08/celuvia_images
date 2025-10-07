@@ -100,6 +100,9 @@ def login_view(request):
 def logout_view(request):
     """
     Log the user out.
+
+    - param request: HTTP request object.
+    - return: Rendered template of the logout form.
     """
     logout(request)
     messages.info(request, "You have been logged out.")
@@ -109,6 +112,9 @@ def logout_view(request):
 def request_password_reset(request):
     """
     View for users to request a password reset email.
+
+    - param request: HTTP request object.
+    - return: Rendered template of password reset page.
     """
     if request.method == "POST":
         email = request.POST.get("email")
@@ -151,6 +157,10 @@ def request_password_reset(request):
 def reset_password(request, token):
     """
     Password reset.
+
+    - param request: HTTP request object.
+    - param token: Reset token to verify users identity.
+    - return: Rendered template of vendor dashboard.
     """
     token_hash = sha1(token.encode()).hexdigest()
     try:

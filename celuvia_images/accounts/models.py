@@ -7,6 +7,20 @@ class User(AbstractUser):
     """
     Custom user model for Buyers and Vendors.
     Uses email as the login field.
+
+    Fields:
+        - user_name: Populated using users first and last name.
+        - first_name: CharField, users first name.
+        - last_name: CharField, users last name.
+        - email: EmailField, users email.
+        - phone_number: CharField, users phone number.
+        - address_1: CharField, first line of address.
+        - address_2: CharField, second line of address.
+        - town: CharField, address Town.
+        - city: CharField, address City.
+        - post_code: CharField, address post code.
+        - password1: CharField, password.
+        - password2: CharField, password.
     """
 
     username = None

@@ -2,27 +2,87 @@
 {% load static %}
 {% block content %}
 <div class="container my-5">
-    <div class="text-center mb-5">
-        <h1>Welcome to {{ SITE_NAME }}</h1>
-        <p class="lead">Explore our beautiful framed images by category</p>
-    </div>
+    <h2>Products</h2>
 
-    <div class="row">
-        {% for category in categories %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if category.image %}
-                    <img src="{{ category.image.url }}" class="card-img-top" alt="{{ category.name }}">
-                {% endif %}
-                <div class="card-body text-center">
-                    <h5 class="card-title">{{ category.name }}</h5>
-                    <a href="{% url 'shop:category_detail' category.slug %}" class="btn btn-outline-primary">Browse</a>
+    <!-- Search -->
+    <form method="get" class="d-flex mb-4">
+        <input type="text" name="search" value="{{ request.GET.search }}" 
+               class="form-control me-2" placeholder="Search products">
+        <button type="submit" class="btn btn-outline-secondary">Search</button>
+    </form>
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for product in page_obj %}
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ product.name }}</h5>
+
+                        <!-- Show smallest size price -->
+                        <p class="card-text">
+                            {% if product.get_min_price %}
+                                from £{{ product.get_min_price }}
+                            {% else %}
+                                Price not available
+                            {% endif %}
+                        </p>
+
+                        <!-- Rating summary -->
+                        {% if product.get_average_rating %}
+                            <div class="mb-2">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= product.get_average_rating|floatformat:0 %}
+                                        <i class="fas fa-star text-warning"></i>
+                                    {% else %}
+                                        <i class="far fa-star text-warning"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <small class="text-muted">
+                                    {{ product.get_average_rating|floatformat:1 }}/5 
+                                    ({{ product.get_review_count }})
+                                </small>
+                            </div>
+                        {% else %}
+                            <small class="text-muted">No reviews yet</small>
+                        {% endif %}
+
+                        <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">
+                            View
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
         {% empty %}
-        <p>No categories available yet.</p>
+            <p>No products found.</p>
         {% endfor %}
     </div>
+
+    <!-- Pagination -->
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav>
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}

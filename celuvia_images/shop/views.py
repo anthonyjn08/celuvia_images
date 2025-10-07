@@ -20,10 +20,31 @@ from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 
-def home(request):
-    """Store landing page."""
+def home(request, category_slug=None):
+    """
+    Stores landing page, showing list of products with pagination and optional
+    filtering by category.
+    """
+    category = None
     categories = Category.objects.all()
-    return render(request, "shop/home.html", {"categories": categories})
+    products = Product.objects.filter(store__is_active=True)
+
+    search = request.GET.get("search")
+    if search:
+        products = products.filter(name__icontains=search)
+
+    if category_slug:
+        category = get_object_or_404(Category, slug=category_slug)
+        products = products.filter(category=category)
+
+    paginator = Paginator(products, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(
+        request,
+        "shop/home.html",
+        {"category": category, "categories": categories, "page_obj": page_obj},
+    )
 
 
 @login_required
@@ -176,6 +197,14 @@ def update_order_status(request, order_id):
     return redirect("shop:vendor_orders")
 
 
+def category(request):
+    """
+    Category page allowing users to filter and view available categories.
+    """
+    categories = Category.objects.all()
+    return render(request, "shop/category.html", {"categories": categories})
+
+
 def category_detail(request, category_slug):
     """
     Allows users to view products by category.
@@ -294,25 +323,6 @@ def edit_product(request, store_id, product_id):
     )
 
 
-# @login_required
-# def delete_product(request, product_id):
-#     """
-#     Allows owner to delete stores products.
-#     """
-#     if not request.user.is_vendor():
-#         return HttpResponseForbidden()
-
-#     product = get_object_or_404(
-#         Product, id=product_id, store__owner=request.user)
-
-#     if request.method == "POST":
-#         store_id = product.store.id
-#         product.delete()
-#         messages.warning(request, f"Product '{product.name}' deleted.")
-#         return redirect("shop:store_detail", store_id=store_id)
-#     return render(request, "shop/delete_product.html", {"product": product})
-
-
 @login_required
 def archive_product(request, store_id, product_id):
     """
@@ -357,32 +367,6 @@ def unarchive_product(request, store_id, product_id):
         request,
         "shop/unarchive_product.html",
         {"store": store, "product": product},
-    )
-
-
-def product_list(request, category_slug=None):
-    """
-    Product list view.
-    """
-    category = None
-    categories = Category.objects.all()
-    products = Product.objects.filter(store__is_active=True)
-
-    search = request.GET.get("search")
-    if search:
-        products = products.filter(name__icontains=search)
-
-    if category_slug:
-        category = get_object_or_404(Category, slug=category_slug)
-        products = products.filter(category=category)
-
-    paginator = Paginator(products, 12)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    return render(
-        request,
-        "shop/product_list.html",
-        {"category": category, "categories": categories, "page_obj": page_obj},
     )
 
 
