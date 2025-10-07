@@ -2,27 +2,33 @@
 {% load static %}
 {% block content %}
 <div class="container my-5">
-    <h2>Products</h2>
+    <h2 class="mb-4 text-center">Products</h2>
 
     <!-- Search -->
     <form method="get" class="d-flex mb-4">
-        <input type="text" name="search" value="{{ request.GET.search }}" 
+        <input type="text" name="search" value="{{ request.GET.search }}"
                class="form-control me-2" placeholder="Search products">
         <button type="submit" class="btn btn-outline-secondary">Search</button>
     </form>
 
-    <div class="row row-cols-1 row-cols-md-3 g-4">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for product in page_obj %}
             <div class="col">
                 <div class="card h-100 shadow-sm">
-                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
+                    {% if product.image %}
+                        <img src="{{ product.image.url }}" class="card-img-top"
+                             alt="{{ product.name }}">
+                    {% else %}
+                        <img src="{% static 'shop/img/no-image.jpg' %}"
+                             class="card-img-top" alt="No image available">
+                    {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ product.name }}</h5>
 
                         <!-- Show smallest size price -->
-                        <p class="card-text">
+                        <p class="card-text mb-1">
                             {% if product.get_min_price %}
-                                from £{{ product.get_min_price }}
+                                From £{{ product.get_min_price }}
                             {% else %}
                                 Price not available
                             {% endif %}
@@ -39,7 +45,7 @@
                                     {% endif %}
                                 {% endfor %}
                                 <small class="text-muted">
-                                    {{ product.get_average_rating|floatformat:1 }}/5 
+                                    {{ product.get_average_rating|floatformat:1 }}/5
                                     ({{ product.get_review_count }})
                                 </small>
                             </div>
@@ -47,7 +53,8 @@
                             <small class="text-muted">No reviews yet</small>
                         {% endif %}
 
-                        <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">
+                        <a href="{% url 'shop:product_detail' product.id %}"
+                           class="btn btn-primary btn-sm mt-2">
                             View
                         </a>
                     </div>
@@ -60,29 +67,31 @@
 
     <!-- Pagination -->
     {% if page_obj.paginator.num_pages > 1 %}
-    <nav>
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
-                        Previous
-                    </a>
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            Previous
+                        </a>
+                    </li>
+                {% endif %}
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
                 </li>
-            {% endif %}
-            <li class="page-item disabled">
-                <span class="page-link">
-                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-                </span>
-            </li>
-            {% if page_obj.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
-                        Next
-                    </a>
-                </li>
-            {% endif %}
-        </ul>
-    </nav>
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                            Next
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
     {% endif %}
 </div>
 {% endblock %}

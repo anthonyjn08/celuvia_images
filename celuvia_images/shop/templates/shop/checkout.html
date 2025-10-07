@@ -10,27 +10,58 @@
     <form action="{% url 'shop:checkout' %}" method="POST" class="mt-4">
         {% csrf_token %}
 
-        <div class="row">
+        <div class="row g-5">
             <!-- Shipping Address -->
             <div class="col-md-6">
-                <h4>Shipping Address</h4>
-                {{ shipping_form.as_p }}
-            </div>
+                <h4 class="mb-3">Shipping Address</h4>
 
-            <!-- Billing Address -->
-            <div class="col-md-6">
-                <h4>Billing Address</h4>
+                {% for field in shipping_form %}
+                    <div class="row mb-1 align-items-center">
+                        <label for="{{ field.id_for_label }}" 
+                               class="col-sm-4 col-form-label col-form-label-sm pe-1">
+                            {{ field.label }}
+                        </label>
+                        <div class="col-sm-8">
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger small">
+                                    {{ field.errors|striptags }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
 
-                <div class="form-check mb-3">
+                <div class="form-check mt-3">
                     <input type="checkbox" name="same_billing" id="same_billing"
-                           class="form-check-input">
+                           class="form-check-input" checked>
                     <label for="same_billing" class="form-check-label">
                         Billing address same as shipping
                     </label>
                 </div>
+            </div>
 
-                <div id="billing-fields">
-                    {{ billing_form.as_p }}
+            <!-- Billing Address -->
+            <div class="col-md-6">
+                <h4 class="mb-3">Billing Address</h4>
+
+                <div id="billing-fields" class="ps-3">
+                    {% for field in billing_form %}
+                        <div class="row mb-1 align-items-center">
+                            <label for="{{ field.id_for_label }}" 
+                                   class="col-sm-4 col-form-label col-form-label-sm pe-1">
+                                {{ field.label }}
+                            </label>
+                            <div class="col-sm-8">
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="text-danger small">
+                                        {{ field.errors|striptags }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -39,18 +70,14 @@
             <button type="submit" class="btn btn-primary btn-lg">
                 Proceed to Payment
             </button>
+            <a href="{% url 'shop:home' %}"
+               class="btn btn-lg btn-secondary ms-2">
+               Continue Shopping
+            </a>
         </div>
     </form>
-
-    <div class="text-end mt-3">
-        <a href="{% url 'shop:product_list' %}"
-           class="btn btn-lg btn-secondary">
-            Continue Shopping
-        </a>
-    </div>
 </div>
 
-<!-- ===== JavaScript for syncing and hiding billing fields ===== -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const sameBillingCheckbox = document.getElementById("same_billing");
@@ -61,22 +88,17 @@
 
         function toggleBillingFields() {
             if (sameBillingCheckbox.checked) {
-                // Copy values from shipping to billing
                 billingFields.forEach((field, index) => {
                     field.value = shippingFields[index]?.value || '';
                 });
-                // Hide billing form section
                 billingFieldsDiv.style.display = "none";
             } else {
-                // Clear and show billing form section
                 billingFields.forEach(field => field.value = '');
                 billingFieldsDiv.style.display = "block";
             }
         }
 
         sameBillingCheckbox.addEventListener("change", toggleBillingFields);
-
-        // Run once on page load (in case checkbox is pre-checked)
         toggleBillingFields();
     });
 </script>

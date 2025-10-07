@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils.timezone import now
 from django.db.models import Avg
 from django.utils.text import slugify
+from decimal import Decimal
 
 FRAME_CHOICES = [
         ("Black", "Black"),
@@ -192,6 +193,7 @@ class Order(models.Model):
 
     Fields:
         - user: ForeignKey to the User who placed the order.
+        - total: DecimalField for order total
         - created_at: DateTimeField for when the order was placed.
         - status: CharField for the order shipping status.
         - shipping_address: ForeignKey, for shippnig address
@@ -207,6 +209,8 @@ class Order(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE, related_name="orders")
+    total = models.DecimalField(max_digits=10, decimal_places=2,
+                                default=Decimal(0.00))
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="pending")

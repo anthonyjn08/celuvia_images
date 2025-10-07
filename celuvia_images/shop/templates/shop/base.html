@@ -60,10 +60,6 @@
                         </ul>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'shop:product_list' %}">All Products</a>
-                    </li>
-
                     {% if user.is_authenticated %}
                         {% if user.is_vendor %}
                             <!-- Vendor-specific links -->

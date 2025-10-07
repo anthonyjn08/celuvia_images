@@ -8,9 +8,9 @@ urlpatterns = [
     path("", views.home, name="home"),
     path("categories", views.category, name="category"),
     path("category/<slug:category_slug>/",
-         views.product_list, name="category_detail"),
+         views.home, name="category_detail"),
     path("products/category/<slug:category_slug>/",
-         views.product_list, name="product_list_by_category"),
+         views.home, name="product_list_by_category"),
     path("products/<int:product_id>/",
          views.product_detail, name="product_detail"),
 
@@ -45,12 +45,11 @@ urlpatterns = [
 
     # Stripe checkout
     path("checkout/", views.checkout, name="checkout"),
-    path("create-checkout-session/", 
+    path("create-checkout-session/",
          views.create_checkout_session, name="create_checkout_session"),
     path("checkout/success/", views.checkout_success, name="checkout_success"),
     path("checkout/cancel/", views.checkout_cancel, name="checkout_cancel"),
     path('stripe-webhook/', views.stripe_webhook, name='stripe-webhook'),
-
 
     # Reviews
     path("products/<int:product_id>/review/",

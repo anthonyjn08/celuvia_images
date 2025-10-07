@@ -1,4 +1,5 @@
 import stripe
+import json
 from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -11,6 +12,7 @@ from django.core.paginator import Paginator
 from django.core.mail import EmailMessage
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
+from datetime import timedelta
 from decimal import Decimal
 from .models import (Store, Product, Category, Order, OrderItem, Review,
                      Address, FRAME_CHOICES)
@@ -477,8 +479,12 @@ def add_to_cart(request, product_id):
     request.session["cart"] = cart
     request.session.modified = True
 
+    # Set session expiry for 1 week
+    request.session.set_expiry(timedelta(days=7))
+
     messages.success(
-        request, f"Added {product.name} ({size}/{frame_colour}) to cart.")
+        request, f"Added {product.name} ({size}/{frame_colour}) to cart."
+    )
     return redirect("shop:show_cart")
 
 
@@ -540,6 +546,9 @@ def update_cart(request):
 
         request.session["cart"] = cart
         request.session.modified = True
+
+        # Reset session expiry for 1 week again if cart is modified
+        request.session.set_expiry(timedelta(days=7))
 
     return redirect("shop:show_cart")
 
@@ -610,7 +619,7 @@ def create_checkout_session(request):
             request, "Payment configuration error. Contact support.")
         return redirect("shop:show_cart")
 
-    return checkout_session
+    return redirect(checkout_session.url)
 
 
 @login_required
@@ -667,42 +676,46 @@ def stripe_webhook(request):
             except User.DoesNotExist:
                 pass
 
-        # Shipping address
+        # Shipping and billing addresses
         shipping_data = {key.replace("shipping_", ""): value
                          for key, value in metadata.items()
-                         if key.startswith("shipping_")
-                         }
-        # Billing address
+                         if key.startswith("shipping_")}
         billing_data = {key.replace("billing_", ""): value
                         for key, value in metadata.items()
-                        if key.startswith("billing_")
-                        }
+                        if key.startswith("billing_")}
 
-        shipping_address = Address.objects.create(user=user, **shipping_data,
-                                                  is_shipping=True)
-        if shipping_data == billing_data:
-            billing_address = shipping_address
-        else:
-            billing_address = Address.objects.create(user=user, **billing_data,
-                                                     is_billing=True)
+        shipping_address = Address.objects.create(
+            user=user, **shipping_data, is_shipping=True)
+
+        billing_address = (shipping_address
+                           if shipping_data == billing_data else
+                           Address.objects.create
+                           (user=user, **billing_data, is_billing=True))
+
+        # Reconstruct cart from metadata
+        cart_json = metadata.get("cart", "{}")
+        cart = json.loads(cart_json)
+
+        total = Decimal("0.00")
+        for item in cart.values():
+            total += Decimal(item["price"]) * int(item["quantity"])
 
         # Create order
-        order = Order.objects.create(user=user,
-                                     total=Decimal("0.00"),
-                                     shipping_address=shipping_address,
-                                     billing_address=billing_address)
+        order = Order.objects.create(
+            user=user,
+            total=total,
+            shipping_address=shipping_address,
+            billing_address=billing_address
+        )
 
         # Send confirmation email
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
-        html_body = render_to_string("shop/order_confirmation_email.txt",
-                                     {"order": order})
-        email = EmailMessage(subject, html_body, None,
-                             [session["customer_email"]])
+        html_body = render_to_string(
+            "shop/order_confirmation_email.txt", {"order": order})
+        email = EmailMessage(
+            subject, html_body, None, [session["customer_email"]])
         email.content_subtype = "html"
         email.send(fail_silently=True)
-
-        # Clear cart
-        request.session["cart"] = {}
 
     return HttpResponse(status=200)
 
@@ -712,6 +725,10 @@ def checkout_success(request):
     """
     View shown after successful payment.
     """
+    if "cart" in request.session:
+        request.session["cart"] = {}
+        request.session.modified = True
+
     return render(request, "shop/checkout_success.html")
 
 

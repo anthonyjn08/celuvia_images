@@ -2,26 +2,28 @@
 {% load static %}
 {% block content %}
 <div class="container my-5">
-    <div class="text-center mb-5">
-        <h1>Welcome to {{ SITE_NAME }}</h1>
-        <p class="lead">Explore our beautiful framed images by category</p>
-    </div>
-
-    <div class="row">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
         {% for category in categories %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if category.image %}
-                    <img src="{{ category.image.url }}" class="card-img-top" alt="{{ category.name }}">
-                {% endif %}
-                <div class="card-body text-center">
-                    <h5 class="card-title">{{ category.name }}</h5>
-                    <a href="{% url 'shop:category_detail' category.slug %}" class="btn btn-outline-primary">Browse</a>
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    {% if category.image %}
+                        <img src="{{ category.image.url }}" class="card-img-top"
+                             alt="{{ category.name }}">
+                    {% else %}
+                        <img src="{% static 'shop/img/no-image.jpg' %}"
+                             class="card-img-top" alt="No category image">
+                    {% endif %}
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ category.name }}</h5>
+                        <a href="{% url 'shop:category_detail' category.slug %}"
+                           class="btn btn-outline-primary mt-2">
+                           Browse
+                        </a>
+                    </div>
                 </div>
             </div>
-        </div>
         {% empty %}
-        <p>No categories available yet.</p>
+            <p class="text-center">No categories available yet.</p>
         {% endfor %}
     </div>
 </div>
