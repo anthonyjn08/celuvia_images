@@ -61,21 +61,7 @@
                     </li>
 
                     {% if user.is_authenticated %}
-                        {% if user.is_vendor %}
-                            <!-- Vendor-specific links -->
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'shop:vendor_orders' %}">Vendor Orders</a>
-                            </li>
-                            {% if user.stores.exists %}
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'shop:store_detail' user.stores.first.id %}">My Stores</a>
-                                </li>
-                            {% else %}
-                                <li class="nav-item">
-                                    <a class="nav-link" href="{% url 'shop:vendor_dashboard' %}">My Stores</a>
-                                </li>
-                            {% endif %}
-                        {% endif %}
+                        
                         <!-- Buyer-specific links -->
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'shop:my_orders' %}">My Orders</a>
@@ -85,6 +71,26 @@
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'shop:show_cart' %}">Cart</a>
                         </li>
+
+                        {% if user.is_vendor %}
+                            <!-- Vendors dropdown -->
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="vendorDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    Vendor Menu
+                                </a>
+                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="vendorDropdown">
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'shop:vendor_dashboard' %}">Dashboard</a>
+                                    </li>
+                                    {% if user.stores.exists %}
+                                    <li class="nav-item">
+                                        <a class="nav-link" href="{% url 'shop:store_detail' user.stores.first.id %}">My Stores</a>
+                                    </li>
+                                    {% endif %}
+                                    <li><a class="nav-link" href="{% url 'shop:vendor_orders' %}">Vendor Orders</a></li>
+                                </ul>
+                            </li>
+                        {% endif %}
 
                         <!-- Profile dropdown -->
                         <li class="nav-item dropdown">
@@ -131,6 +137,7 @@
     <!-- Footer -->
     <footer class="bg-light border-top text-center py-3 mt-5">
         <p class="mb-1">&copy; {{ SITE_NAME }}</p>
+        <p class="mb-1">Free shipping in 3 business days!</p>
         <p class="mb-0">Site for Educational Purposes Only</p>
     </footer>
     

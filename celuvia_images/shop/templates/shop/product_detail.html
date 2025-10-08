@@ -85,7 +85,7 @@
         <h4>Leave a Review</h4>
         <form method="post" action="{% url 'shop:add_review' product.id %}">
             {% csrf_token %}
-            {{ review_form.as_p }}
+            {{ add_review_form.as_p }}
             <button type="submit" class="btn btn-success">Submit Review</button>
         </form>
     {% else %}

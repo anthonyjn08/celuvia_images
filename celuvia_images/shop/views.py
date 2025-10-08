@@ -749,7 +749,10 @@ def stripe_webhook(request):
             )
 
         # Calculate total
-        cart = json.loads(metadata.get("cart", "{}"))
+        cart = metadata.get("cart", "{}")
+        if isinstance(cart, str):
+            cart = json.loads(cart)
+
         total = sum(Decimal(
             item["price"]) * int(item["quantity"]) for item in cart.values())
 
@@ -760,6 +763,22 @@ def stripe_webhook(request):
             shipping_address=shipping_address,
             billing_address=billing_address,
         )
+
+        # Create order items
+        for entry in cart.values():
+            try:
+                product = Product.objects.get(id=entry["product_id"])
+            except Product.DoesNotExist:
+                continue
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                size=entry.get("size", ""),
+                frame_colour=entry.get("frame_colour", ""),
+                quantity=int(entry.get("quantity", 1)),
+                price=Decimal(entry.get("price", "0.00")),
+            )
+        print("Order item passed")
 
         # Send confirmation
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
@@ -858,5 +877,5 @@ def my_orders(request):
     """
     Allows users to see their order history.
     """
-    orders = request.user.orders.all().order_by("-created_at")
+    orders = request.user.orders.all().order_by("created_at")
     return render(request, "shop/my_orders.html", {"orders": orders})
