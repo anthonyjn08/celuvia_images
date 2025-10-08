@@ -560,46 +560,27 @@ def create_checkout_session(request):
     """
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
-    cart = request.session.get("cart", {}) or {}
-    if not isinstance(cart, dict) or not cart:
+    metadata = request.session.get("checkout_metadata", {})
+    cart = json.loads(metadata.get("cart", "{}"))
+
+    if not cart:
         messages.error(request, "Your cart is empty.")
         return redirect("shop:show_cart")
 
+    # --- Build line items ---
     line_items = []
     for entry in cart.values():
         product = Product.objects.get(id=entry["product_id"])
         price = int(Decimal(entry["price"]) * 100)
-
         line_items.append({
             "price_data": {
                 "currency": "gbp",
-                "product_data": {
-                    "name": (f"{product.name} ({entry['size']}, "
-                             f"{entry['frame_colour']})"),
-                },
+                "product_data": {"name": (f"{product.name} ({entry['size']}, "
+                                          f"{entry['frame_colour']})")},
                 "unit_amount": price,
             },
             "quantity": entry["quantity"],
         })
-
-    # Extract shipping and billing data from POST
-    shipping = request.POST.get("shipping") or {}
-    billing = request.POST.get("billing") or {}
-    same_billing = request.POST.get("same_billing") == "on"
-
-    # Build metadata dictionary
-    metadata = {"user_id": request.user.id}
-    address_fields = [
-        "full_name", "address_line1", "address_line2", "town",
-        "city", "postcode", "phone"
-    ]
-
-    for field in address_fields:
-        metadata[f"shipping_{field}"] = shipping.get(field, "")
-        if same_billing:
-            metadata[f"billing_{field}"] = shipping.get(field, "")
-        else:
-            metadata[f"billing_{field}"] = billing.get(field, "")
 
     try:
         checkout_session = stripe.checkout.Session.create(
@@ -613,13 +594,11 @@ def create_checkout_session(request):
             customer_email=request.user.email,
             metadata=metadata,
         )
-    except stripe.error.AuthenticationError as e:
-        print("Stripe authentication error:", e)
+        return redirect(checkout_session.url)
+    except stripe.error.AuthenticationError:
         messages.error(
-            request, "Payment configuration error. Contact support.")
+            request, "Payment configuration error. Please contact support.")
         return redirect("shop:show_cart")
-
-    return redirect(checkout_session.url)
 
 
 @login_required
@@ -627,24 +606,99 @@ def checkout(request):
     """
     Alternate checkout entrypoint (creates a session).
     """
-    cart = request.session.get("cart", {}) or {}
+    user = request.user
+    cart = request.session.get("cart", {})
     if not cart:
         messages.error(request, "Your cart is empty.")
         return redirect("shop:show_cart")
 
-    if request.method == "POST":
-        # Create checkout session and redirect to Stripe
-        return create_checkout_session(request)
+    # --- Load defaults ---
+    default_shipping = Address.objects.filter(
+        user=user, is_shipping=True, is_default=True).first()
 
-    # Show empty forms for shipping and billing
-    shipping_form = CheckoutAddressForm(prefix="shipping")
-    billing_form = CheckoutAddressForm(prefix="billing")
+    default_billing = Address.objects.filter(
+        user=user, is_billing=True, is_default=True).first()
 
-    context = {
-        "shipping_form": shipping_form,
-        "billing_form": billing_form,
+    shipping_initial = {
+        "full_name": (default_shipping.full_name if default_shipping else ""),
+        "address_line1": (
+            default_shipping.address_line1 if default_shipping else ""),
+
+        "address_line2": (
+            default_shipping.address_line2 if default_shipping else ""),
+
+        "town": (default_shipping.town if default_shipping else ""),
+        "city": (default_shipping.city if default_shipping else ""),
+        "postcode": (default_shipping.postcode if default_shipping else ""),
+        "phone": (default_shipping.phone if default_shipping else ""),
     }
-    return render(request, "shop/checkout.html", context)
+
+    billing_initial = {
+        "full_name": (default_billing.full_name if default_billing else ""),
+        "address_line1": (
+            default_billing.address_line1 if default_billing else ""),
+
+        "address_line2": (
+            default_billing.address_line2 if default_billing else ""),
+
+        "town": (default_billing.town if default_billing else ""),
+        "city": (default_billing.city if default_billing else ""),
+        "postcode": (default_billing.postcode if default_billing else ""),
+        "phone": (default_billing.phone if default_billing else ""),
+    }
+
+    # --- Handle POST ---
+    if request.method == "POST":
+        shipping_form = CheckoutAddressForm(request.POST, prefix="shipping")
+        same_billing = request.POST.get("same_billing") == "on"
+        save_default = request.POST.get("save_default_address") == "on"
+
+        if shipping_form.is_valid():
+            shipping_data = {field: shipping_form.cleaned_data.get(field, "")
+                             for field in shipping_form.fields}
+
+            # Copy shipping → billing if checkbox checked
+            if same_billing:
+                billing_data = shipping_data.copy()
+            else:
+                billing_data = {key.replace("billing_", ""): value.strip()
+                                for key, value in request.POST.items()
+                                if key.startswith("billing_")}
+
+            # Save defaults if requested
+            if save_default:
+                Address.objects.update_or_create(
+                    user=user,
+                    is_shipping=True,
+                    defaults={**shipping_data, "is_default": True},
+                )
+                Address.objects.update_or_create(
+                    user=user,
+                    is_billing=True,
+                    defaults={**billing_data, "is_default": True},
+                )
+
+            # Store metadata for Stripe
+            request.session["checkout_metadata"] = {
+                "user_id": user.id,
+                "cart": json.dumps(cart),
+                **{f"shipping_{k}": v for k, v in shipping_data.items()},
+                **{f"billing_{k}": v for k, v in billing_data.items()},
+            }
+
+            return redirect("shop:create_checkout_session")
+
+    else:
+        shipping_form = CheckoutAddressForm(
+            prefix="shipping", initial=shipping_initial)
+        same_billing = True
+        billing_data = billing_initial
+
+    return render(request, "shop/checkout.html", {
+        "shipping_form": shipping_form,
+        "same_billing": True,
+        "cart": cart,
+    })
 
 
 @csrf_exempt
@@ -659,24 +713,19 @@ def stripe_webhook(request):
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, endpoint_secret)
+
     except (ValueError, stripe.error.SignatureVerificationError):
         return HttpResponse(status=400)
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         metadata = session.get("metadata", {})
-        user_id = metadata.get("user_id")
 
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        user = None
-        if user_id:
-            try:
-                user = User.objects.get(id=user_id)
-            except User.DoesNotExist:
-                pass
+        user = User.objects.filter(id=metadata.get("user_id")).first()
 
-        # Shipping and billing addresses
+        # Extract address data
         shipping_data = {key.replace("shipping_", ""): value
                          for key, value in metadata.items()
                          if key.startswith("shipping_")}
@@ -684,34 +733,39 @@ def stripe_webhook(request):
                         for key, value in metadata.items()
                         if key.startswith("billing_")}
 
-        shipping_address = Address.objects.create(
-            user=user, **shipping_data, is_shipping=True)
+        # Create or reuse unique address
+        shipping_address, _ = Address.objects.update_or_create(
+            user=user,
+            is_shipping=True,
+            defaults={**shipping_data, "is_default": True},
+        )
+        if shipping_data == billing_data:
+            billing_address = shipping_address
+        else:
+            billing_address, _ = Address.objects.update_or_create(
+                user=user,
+                is_billing=True,
+                defaults={**billing_data, "is_default": True},
+            )
 
-        billing_address = (shipping_address
-                           if shipping_data == billing_data else
-                           Address.objects.create
-                           (user=user, **billing_data, is_billing=True))
-
-        # Reconstruct cart from metadata
-        cart_json = metadata.get("cart", "{}")
-        cart = json.loads(cart_json)
-
-        total = Decimal("0.00")
-        for item in cart.values():
-            total += Decimal(item["price"]) * int(item["quantity"])
+        # Calculate total
+        cart = json.loads(metadata.get("cart", "{}"))
+        total = sum(Decimal(
+            item["price"]) * int(item["quantity"]) for item in cart.values())
 
         # Create order
         order = Order.objects.create(
             user=user,
             total=total,
             shipping_address=shipping_address,
-            billing_address=billing_address
+            billing_address=billing_address,
         )
 
-        # Send confirmation email
+        # Send confirmation
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
         html_body = render_to_string(
             "shop/order_confirmation_email.txt", {"order": order})
+
         email = EmailMessage(
             subject, html_body, None, [session["customer_email"]])
         email.content_subtype = "html"

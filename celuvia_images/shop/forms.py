@@ -119,7 +119,6 @@ class CheckoutAddressForm(forms.ModelForm):
         - postcode: CharField, post code for address.
         - phone: CharField, contact number.
     """
-
     class Meta:
         model = Address
         fields = ["full_name", "address_line1", "address_line2", "town",
@@ -150,3 +149,15 @@ class CheckoutAddressForm(forms.ModelForm):
                 attrs={"class": "form-control", "placeholder": "Phone Number"}
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        """
+        Allows form prefixes (shipping/billing) and optional fields.
+        """
+        super().__init__(*args, **kwargs)
+        # Required fields
+        required_fields = ["full_name", "address_line1", "city",
+                           "postcode", "phone"]
+        for field_name, field in self.fields.items():
+            field.required = field_name in required_fields
+            field.widget.attrs.update({"placeholder": field.label})

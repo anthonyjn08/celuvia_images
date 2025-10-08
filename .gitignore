@@ -16,3 +16,6 @@ venv/
 
 # API keys
 .env
+
+# Admin details
+credentials.txt

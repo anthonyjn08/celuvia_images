@@ -3,6 +3,7 @@ from django.conf import settings
 from django.utils.timezone import now
 from django.db.models import Avg
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 from decimal import Decimal
 
 FRAME_CHOICES = [
@@ -297,6 +298,45 @@ class Address(models.Model):
     is_default = models.BooleanField(default=False)
     is_shipping = models.BooleanField(default=False)
     is_billing = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "is_shipping"],
+                name="unique_shipping_per_user",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "is_billing"],
+                name="unique_billing_per_user",
+            ),
+        ]
+
+    def clean(self):
+        """
+        Ensure only one default shipping and billing address per user.
+        Called automatically when using full_clean() or in admin/forms.
+        """
+        if self.is_shipping and self.is_default:
+            qs = Address.objects.filter(
+                user=self.user, is_shipping=True, is_default=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(
+                    "You can only have one default shipping address.")
+
+        if self.is_billing and self.is_default:
+            qs = Address.objects.filter(
+                user=self.user, is_billing=True, is_default=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            if qs.exists():
+                raise ValidationError(
+                    "You can only have one default billing address.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # triggers clean() before saving
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.full_name}, {self.address_line1}, {self.city}"

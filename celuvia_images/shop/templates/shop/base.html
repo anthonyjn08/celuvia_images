@@ -75,12 +75,11 @@
                                     <a class="nav-link" href="{% url 'shop:vendor_dashboard' %}">My Stores</a>
                                 </li>
                             {% endif %}
-                        {% elif user.is_buyer %}
-                            <!-- Buyer-specific links -->
-                            <li class="nav-item">
-                                <a class="nav-link" href="{% url 'shop:my_orders' %}">My Orders</a>
-                            </li>
                         {% endif %}
+                        <!-- Buyer-specific links -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'shop:my_orders' %}">My Orders</a>
+                        </li>
 
                         <!-- Cart always visible -->
                         <li class="nav-item">

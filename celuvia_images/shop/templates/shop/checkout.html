@@ -3,62 +3,55 @@
 {% block content %}
 <div class="container my-5">
     <h2 class="text-center mb-4">Checkout</h2>
-    <p class="text-center">
-        Please enter your delivery and billing address details below.
-    </p>
+    <p class="text-center">Please enter your delivery and billing address details below.</p>
 
     <form action="{% url 'shop:checkout' %}" method="POST" class="mt-4">
         {% csrf_token %}
-
         <div class="row g-5">
-            <!-- Shipping Address -->
+
+            <!-- Shipping -->
             <div class="col-md-6">
                 <h4 class="mb-3">Shipping Address</h4>
-
                 {% for field in shipping_form %}
-                    <div class="row mb-1 align-items-center">
-                        <label for="{{ field.id_for_label }}" 
-                               class="col-sm-4 col-form-label col-form-label-sm pe-1">
+                    <div class="row mb-2 align-items-center">
+                        <label for="{{ field.id_for_label }}" class="col-sm-4 col-form-label col-form-label-sm pe-1">
                             {{ field.label }}
                         </label>
                         <div class="col-sm-8">
                             {{ field }}
                             {% if field.errors %}
-                                <div class="text-danger small">
-                                    {{ field.errors|striptags }}
-                                </div>
+                                <div class="text-danger small">{{ field.errors|striptags }}</div>
                             {% endif %}
                         </div>
                     </div>
                 {% endfor %}
 
                 <div class="form-check mt-3">
-                    <input type="checkbox" name="same_billing" id="same_billing"
-                           class="form-check-input" checked>
+                    <input type="checkbox" name="save_default_address" id="save_default_address" class="form-check-input">
+                    <label for="save_default_address" class="form-check-label">
+                        <small>Save as default address</small>
+                    </label>
+                </div>
+
+                <div class="form-check mt-3">
+                    <input type="checkbox" name="same_billing" id="same_billing" class="form-check-input" {% if same_billing %}checked{% endif %}>
                     <label for="same_billing" class="form-check-label">
-                        Billing address same as shipping
+                        <small>Billing same as shipping</small>
                     </label>
                 </div>
             </div>
 
-            <!-- Billing Address -->
-            <div class="col-md-6">
+            <!-- Billing -->
+            <div id="billing-fields" class="col-md-6">
                 <h4 class="mb-3">Billing Address</h4>
-
-                <div id="billing-fields" class="ps-3">
-                    {% for field in billing_form %}
-                        <div class="row mb-1 align-items-center">
-                            <label for="{{ field.id_for_label }}" 
-                                   class="col-sm-4 col-form-label col-form-label-sm pe-1">
+                <div class="ps-3">
+                    {% for field in shipping_form %}
+                        <div class="row mb-2 align-items-center">
+                            <label for="{{ field.id_for_label }}" class="col-sm-4 col-form-label col-form-label-sm pe-1">
                                 {{ field.label }}
                             </label>
                             <div class="col-sm-8">
-                                {{ field }}
-                                {% if field.errors %}
-                                    <div class="text-danger small">
-                                        {{ field.errors|striptags }}
-                                    </div>
-                                {% endif %}
+                                <input type="text" name="billing_{{ field.name|slice:'8:' }}" id="id_billing_{{ field.name|slice:'8:' }}" class="form-control form-control-sm">
                             </div>
                         </div>
                     {% endfor %}
@@ -67,13 +60,8 @@
         </div>
 
         <div class="text-center mt-4">
-            <button type="submit" class="btn btn-primary btn-lg">
-                Proceed to Payment
-            </button>
-            <a href="{% url 'shop:home' %}"
-               class="btn btn-lg btn-secondary ms-2">
-               Continue Shopping
-            </a>
+            <button type="submit" class="btn btn-primary btn-lg">Proceed to Payment</button>
+            <a href="{% url 'shop:home' %}" class="btn btn-lg btn-secondary ms-2">Continue Shopping</a>
         </div>
     </form>
 </div>
@@ -81,25 +69,33 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const sameBillingCheckbox = document.getElementById("same_billing");
-        const billingFieldsDiv = document.getElementById("billing-fields");
+        const billingSection = document.getElementById("billing-fields");
+        const billingInputs = billingSection.querySelectorAll("input");
+        const shippingInputs = document.querySelectorAll('[id^="id_shipping_"]');
 
-        const shippingFields = document.querySelectorAll('[id^="id_shipping_"]');
-        const billingFields = document.querySelectorAll('[id^="id_billing_"]');
-
-        function toggleBillingFields() {
+        function toggleBilling() {
             if (sameBillingCheckbox.checked) {
-                billingFields.forEach((field, index) => {
-                    field.value = shippingFields[index]?.value || '';
-                });
-                billingFieldsDiv.style.display = "none";
+                billingSection.style.display = "none";
+                billingInputs.forEach(i => i.disabled = true);
+                copyShippingToBilling();
             } else {
-                billingFields.forEach(field => field.value = '');
-                billingFieldsDiv.style.display = "block";
+                billingSection.style.display = "block";
+                billingInputs.forEach(i => i.disabled = false);
             }
         }
 
-        sameBillingCheckbox.addEventListener("change", toggleBillingFields);
-        toggleBillingFields();
+        function copyShippingToBilling() {
+            billingInputs.forEach(b => {
+                const name = b.id.replace("id_billing_", "");
+                const s = document.getElementById("id_shipping_" + name);
+                if (s) b.value = s.value;
+            });
+        }
+
+        sameBillingCheckbox.addEventListener("change", toggleBilling);
+        shippingInputs.forEach(i => i.addEventListener("input", copyShippingToBilling));
+
+        toggleBilling(); // Initialize
     });
 </script>
 {% endblock %}

@@ -77,22 +77,20 @@ def login_view(request):
         if form.is_valid():
             email = form.cleaned_data["email"]
             password = form.cleaned_data["password"]
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                user = None
 
+            user = authenticate(request, email=email, password=password)
             if user:
-                user = authenticate(request, username=user.username,
-                                    password=password)
-
-                if user is not None:
+                if user.is_active:
                     login(request, user)
                     messages.success(request, "Logged in successfully.")
                     return redirect("shop:home")
-            messages.error(request, "Invalid email or password.")
+                else:
+                    messages.error(request, "This account is inactive.")
+            else:
+                messages.error(request, "Invalid email or password.")
     else:
         form = LoginForm()
+
     return render(request, "accounts/login.html", {"form": form})
 
 
@@ -146,7 +144,6 @@ def request_password_reset(request):
                     f"in 10 minutes.")
             email_msg = EmailMessage(subject, body, "noreply@celuvia.com",
                                      [user.email])
-
             email_msg.send()
 
         return render(request, "accounts/reset_requested.html")
@@ -187,5 +184,4 @@ def reset_password(request, token):
         else:
             messages.error(request, "Passwords do not match.")
 
-    return render(request, "accounts/reset_password.html",
-                  {"token": token})
+    return render(request, "accounts/reset_password.html", {"token": token})

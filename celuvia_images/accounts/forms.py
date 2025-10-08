@@ -116,14 +116,22 @@ class LoginForm(forms.Form):
         - password: CharField, users password
     """
     email = forms.EmailField(
-        widget=forms.EmailInput(attrs={"class": "form-control",
-                                       "placeholder": "Email address"}),
-
+        widget=forms.EmailInput(attrs={
+            "class": "form-control",
+            "placeholder": "Email address"
+        }),
         label="Email",
     )
     password = forms.CharField(
-        widget=forms.PasswordInput(attrs={"class": "form-control",
-                                          "placeholder": "Password"}),
-
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "placeholder": "Password"
+        }),
         label="Password",
     )
+
+    def clean_email(self):
+        email = self.cleaned_data.get("email")
+        if not User.objects.filter(email=email).exists():
+            raise forms.ValidationError("No account found with this email.")
+        return email
