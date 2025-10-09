@@ -54,11 +54,24 @@
 
     <!-- Reviews -->
     <h3>Reviews</h3>
-    <p>Total ratings {{ ratings }}</p>
+    {% if user.is_authenticated %}
+        {% if not user_review %}
+            <h4>Leave a Review</h4>
+            <button id="add-review" class="btn btn-primary mb-2">Add Review</button>
+            <form id="review-form" method="post" action="{% url 'shop:add_review' product.id %}">
+                {% csrf_token %}
+                {{ review_form.as_p }}
+                <button type="submit" class="btn btn-success">Submit Review</button>
+            </form>
+        {% endif %}
+    {% else %}
+        <p><a href="{% url 'accounts:login' %}">Log in</a> to leave a review.</p>
+    {% endif %}
+
     {% if reviews %}
         <div class="list-group mb-4">
             {% for review in reviews %}
-                <div class="list-group-item col-md-6 col-lg-4">
+                <div class="list-group-item col-md-6 col-lg-4" data-review-id="{{ review.id }}">
                     <strong>{{ review.user.full_name }}</strong>
                     <div>
                         {% for i in "12345" %}
@@ -69,10 +82,29 @@
                             {% endif %}
                         {% endfor %}
                     </div>
-                    <p class="mb-1">{{ review.comment }}</p>
+                    <p class="mb-1 review-comment">{{ review.comment }}</p>
                     <small class="text-muted">{{ review.created_at|date:"j M Y" }}</small>
                     {% if review.verified %}
                         <span class="badge bg-success ms-2">Verified</span>
+                    {% endif %}
+                    
+                    {% if user == review.user %}
+                        <div class="mt-2">
+                            <button class="btn btn-sm btn-outline-primary edit-review">Edit</button>
+                            <form method="post" action="{% url 'shop:delete_review' review.id %}" class="d-inline delete-review-form">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                            </form>
+                        </div>
+
+                        <!-- Inline edit form (hidden initially) -->
+                        <form method="post" action="{% url 'shop:edit_review' review.id %}" class="edit-review-form mt-2" style="display:none;">
+                            {% csrf_token %}
+                            <textarea name="comment" class="form-control mb-2">{{ review.comment }}</textarea>
+                            <input type="number" name="rating" min="1" max="5" value="{{ review.rating }}" class="form-control mb-2" />
+                            <button type="submit" class="btn btn-sm btn-success">Save</button>
+                            <button type="button" class="btn btn-sm btn-secondary cancel-edit">Cancel</button>
+                        </form>
                     {% endif %}
                 </div>
             {% endfor %}
@@ -80,39 +112,9 @@
     {% else %}
         <p>No reviews yet. Be the first to review!</p>
     {% endif %}
-
-    <!-- Add a review -->
-    {% if user.is_authenticated %}
-        <h4>Leave a Review</h4>
-        <a id="add-review" class="btn btn-primary mb-2">Add Review</a>
-        <form id="review-form" class="col-md-6 col-lg-4" method="post" action="{% url 'shop:add_review' product.id %}">
-            {% csrf_token %}
-            {{ review_form.as_p }}
-            <button type="submit" class="btn btn-success">Submit Review</button>
-        </form>
-    {% else %}
-        <p><a href="{% url 'accounts:login' %}">Log in</a> to leave a review.</p>
-    {% endif %}
 </div>
 
-<!-- Custom JavaScript to toggle review form on or off -->
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const addReviewButton = document.getElementById("add-review");
-        const reviewFormSection = document.getElementById("review-form");
-        
-        // Hide form initially
-        reviewFormSection.style.display = "none";
-
-        addReviewButton.addEventListener("click", toggleReview);
-
-        function toggleReview() {
-            if (reviewFormSection.style.display === "none") {
-                reviewFormSection.style.display = "block";
-            } else {
-                reviewFormSection.style.display = "none";
-            }
-        }
-    });
-</script>
+<!-- Custom JavaScript to toggle review form on or off and allow inline edit/deletion of review -->
+<script src="{& static 'shop/js/product.js' %}"></script>
+<script src="{% static 'shop/js/review_inline.js' %'}"></script>
 {% endblock %}

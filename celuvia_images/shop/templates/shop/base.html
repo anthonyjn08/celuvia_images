@@ -82,12 +82,9 @@
                                     <li class="nav-item">
                                         <a class="nav-link" href="{% url 'shop:vendor_dashboard' %}">Dashboard</a>
                                     </li>
-                                    {% if user.stores.exists %}
-                                    <li class="nav-item">
-                                        <a class="nav-link" href="{% url 'shop:store_detail' user.stores.first.id %}">My Stores</a>
+                                    <li>
+                                        <a class="nav-link" href="{% url 'shop:vendor_orders' %}">Vendor Orders</a>
                                     </li>
-                                    {% endif %}
-                                    <li><a class="nav-link" href="{% url 'shop:vendor_orders' %}">Vendor Orders</a></li>
                                 </ul>
                             </li>
                         {% endif %}

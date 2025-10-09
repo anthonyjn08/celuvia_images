@@ -14,7 +14,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 from datetime import timedelta
 from decimal import Decimal
-from .models import (Store, Product, Category, Order, OrderItem, Review,
+from .models import (Store, Product, Category, Size, Order, OrderItem, Review,
                      Address, FRAME_CHOICES)
 from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
                     CheckoutAddressForm)
@@ -42,10 +42,11 @@ def home(request, category_slug=None):
     paginator = Paginator(products, 12)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    return render(
-        request,
-        "shop/home.html",
-        {"category": category, "categories": categories, "page_obj": page_obj},
+    return render(request, "shop/home.html", {
+        "category": category,
+        "categories": categories,
+        "page_obj": page_obj
+        },
     )
 
 
@@ -283,7 +284,11 @@ def edit_product(request, store_id, product_id):
 
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     product = get_object_or_404(Product, id=product_id, store=store)
-    size = getattr(product, "size", None)  # assumes related size object exists
+
+    try:
+        size = product.sizes  # use the correct related name
+    except Size.DoesNotExist:
+        size = None
 
     if request.method == "POST":
         product_form = ProductForm(
@@ -292,13 +297,10 @@ def edit_product(request, store_id, product_id):
 
         if product_form.is_valid() and size_form.is_valid():
             product = product_form.save(commit=False)
-
-            # handle new category if entered
             new_cat = product_form.cleaned_data.get("new_category")
             if new_cat:
                 category, _ = Category.objects.get_or_create(name=new_cat)
                 product.category = category
-
             product.store = store
             product.save()
 
@@ -313,14 +315,11 @@ def edit_product(request, store_id, product_id):
         product_form = ProductForm(instance=product)
         size_form = SizeForm(instance=size)
 
-    return render(
-        request,
-        "shop/edit_product.html",
-        {
-            "store": store,
-            "product": product,
-            "product_form": product_form,
-            "size_form": size_form,
+    return render(request, "shop/edit_product.html", {
+        "store": store,
+        "product": product,
+        "product_form": product_form,
+        "size_form": size_form
         },
     )
 
@@ -378,8 +377,12 @@ def product_detail(request, product_id):
     """
     product = get_object_or_404(Product, id=product_id)
     reviews = product.reviews.all().order_by("created_at")
-
     review_form = ReviewForm() if request.user.is_authenticated else None
+
+    # Determine if the logged-in user has already left a review
+    user_review = None
+    if request.user.is_authenticated:
+        user_review = product.reviews.filter(user=request.user).first()
 
     if request.method == "POST":
         frame = request.POST.get("frame_colour")
@@ -430,6 +433,7 @@ def product_detail(request, product_id):
         "FRAME_CHOICES": FRAME_CHOICES,
         "reviews": reviews,
         "review_form": review_form,
+        "user_review": user_review,
     })
 
 

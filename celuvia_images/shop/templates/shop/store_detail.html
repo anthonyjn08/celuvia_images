@@ -6,7 +6,7 @@
     <p class="text-muted">Owner: {{ store.owner.full_name }} | {{ store.email }} | {{ store.phone_number }}</p>
     
     <!-- Search -->
-    <form method="get" class="d-flex mb-4">
+    <form method="get" class="d-flex mb-4 col-6">
         <input type="text" name="search" value="{{ request.GET.search }}" class="form-control me-2" placeholder="Search products in this store">
         <button type="submit" class="btn btn-outline-secondary">Search</button>
     </form>

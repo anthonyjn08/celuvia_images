@@ -92,6 +92,7 @@ class Product(models.Model):
 
     class Meta:
         unique_together = ("store", "name")
+        ordering = ["-created_at"]
 
     def get_min_price(self):
         if not hasattr(self, "sizes"):

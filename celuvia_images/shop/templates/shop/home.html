@@ -15,18 +15,16 @@
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for product in page_obj %}
             <div class="col">
-                <div class="card h-100 shadow-sm">
+                <div class="card product-card h-100 shadow-sm d-flex flex-column">
                     {% if product.image %}
-                        <img src="{{ product.image.url }}" class="card-img-top"
-                             alt="{{ product.name }}">
+                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
                     {% else %}
-                        <img src="{% static 'shop/img/no-image.jpg' %}"
-                             class="card-img-top" alt="No image available">
+                        <img src="{% static 'shop/img/no-image.jpg' %}" class="card-img-top" alt="No image available">
                     {% endif %}
-                    <div class="card-body">
+
+                    <div class="card-body d-flex flex-column">
                         <h5 class="card-title">{{ product.name }}</h5>
 
-                        <!-- Show smallest size price -->
                         <p class="card-text mb-1">
                             {% if product.get_min_price %}
                                 From £{{ product.get_min_price }}
@@ -35,7 +33,6 @@
                             {% endif %}
                         </p>
 
-                        <!-- Rating summary -->
                         {% if product.get_average_rating %}
                             <div class="mb-2">
                                 {% for i in "12345" %}
@@ -46,18 +43,18 @@
                                     {% endif %}
                                 {% endfor %}
                                 <small class="text-muted">
-                                    {{ product.get_average_rating|floatformat:1 }}/5
-                                    ({{ product.get_review_count }})
+                                    {{ product.get_average_rating|floatformat:1 }}/5 ({{ product.get_review_count }})
                                 </small>
                             </div>
                         {% else %}
-                            <small class="text-muted">No reviews yet</small>
+                            <small class="text-muted mb-2">No reviews yet</small>
                         {% endif %}
 
-                        <a href="{% url 'shop:product_detail' product.id %}"
-                           class="btn btn-primary btn-sm mt-2">
+                        <div class="mt-auto">
+                            <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">
                             View
-                        </a>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
