@@ -377,6 +377,9 @@ def product_detail(request, product_id):
     Product detail view. Users can add items to cart.
     """
     product = get_object_or_404(Product, id=product_id)
+    reviews = product.reviews.all().order_by("created_at")
+
+    review_form = ReviewForm() if request.user.is_authenticated else None
 
     if request.method == "POST":
         frame = request.POST.get("frame_colour")
@@ -425,6 +428,8 @@ def product_detail(request, product_id):
     return render(request, "shop/product_detail.html", {
         "product": product,
         "FRAME_CHOICES": FRAME_CHOICES,
+        "reviews": reviews,
+        "review_form": review_form,
     })
 
 
@@ -834,8 +839,11 @@ def add_review(request, product_id):
             return redirect("shop:product_detail", product_id=product.id)
     else:
         form = ReviewForm()
-    return render(
-        request, "shop/add_review.html", {"form": form, "product": product})
+    return render(request, "shop/add_review.html", {
+        "form": form,
+        "product": product,
+        "reviews": product.reviews.all().order_by("created_at"),
+        })
 
 
 @login_required
