@@ -6,12 +6,21 @@
     <p class="text-center mb-5">Browse our selection of framed images</p>
 
     <!-- Search -->
-    <form method="get" class="d-flex mb-4">
-        <input type="text" name="search" value="{{ request.GET.search }}"
-               class="form-control me-2" placeholder="Search products">
-        <button type="submit" class="btn btn-outline-secondary">Search</button>
-    </form>
+    <div class="row pb-5">
+        <div class="col-5">
+            <form method="get" class="d-flex mb-4">
+                <input type="text" name="search" value="{{ request.GET.search }}"
+                    class="form-control me-2" placeholder="Search products">
+                <button type="submit" class="btn btn-outline-secondary me-2">Search</button>
 
+                {% if request.GET.search %}
+                    <!-- Show this only if a search is active -->
+                    <a href="{% url 'shop:home' %}" class="btn btn-outline-danger">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+    
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for product in page_obj %}
             <div class="col">

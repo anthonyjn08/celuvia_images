@@ -50,6 +50,9 @@
                             Categories
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="categoriesDropdown">
+                            <li>
+                                <a class="dropdown-item" href="{% url 'shop:category' %}">All Categories</a>
+                            </li>
                             {% for cat in categories %}
                                 <li>
                                     <a class="dropdown-item" href="{% url 'shop:category_detail' cat.slug %}">{{ cat.name }}</a>

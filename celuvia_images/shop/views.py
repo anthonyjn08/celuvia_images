@@ -144,6 +144,23 @@ def close_store(request, store_id):
 
 
 @login_required
+def reopen_store(request, store_id):
+    """
+    Allows an owner to close a store
+    """
+    if not request.user.is_vendor():
+        return HttpResponseForbidden()
+
+    store = get_object_or_404(Store, id=store_id, owner=request.user)
+    if request.method == "POST":
+        store.is_active = True
+        store.save()
+        messages.info(request, f"Store '{store.name}' has been reopened.")
+        return redirect("shop:vendor_dashboard")
+    return render(request, "shop/reopen_store.html", {"store": store})
+
+
+@login_required
 def vendor_orders(request):
     """
     Allows vendors view to orders from their stores.

@@ -1,0 +1,14 @@
+{% extends "shop/base.html" %}
+{% load static %}
+{% block content %}
+<div class="container my-5">
+    <h2>Reopen Store</h2>
+    <p>Do you want to reopen store <strong>{{ store.name }}</strong>?<br>
+        Closing a store keeps order history intact but prevents new sales.</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Yes, Reopen Store</button>
+        <a href="{% url 'shop:vendor_dashboard' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

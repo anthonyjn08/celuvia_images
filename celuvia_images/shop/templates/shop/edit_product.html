@@ -1,21 +1,68 @@
 {% extends "shop/base.html" %}
 {% load static %}
 {% block content %}
-<div class="container my-5">
-    <h2>Edit Product: {{ product.name }} in {{ store.name }}</h2>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        <fieldset class="mb-4">
-            <legend>Product Details</legend>
-            {{ product_form.as_p }}
-        </fieldset>
+<div class="container my-5 px-4 px-md-5">
+    <h2 class="text-center mb-4">Edit Product: {{ product.name }} in {{ store.name }}</h2>
 
-        <fieldset class="mb-4">
-            <legend>Size Prices</legend>
-            {{ size_form.as_p }}
-        </fieldset>
-        <button type="submit" class="btn btn-success">Save Changes</button>
-        <a href="{% url 'shop:store_detail' product.store.id %}" class="btn btn-secondary">Cancel</a>
-    </form>
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+
+            {% if product_form.errors or size_form.errors %}
+                <div class="alert alert-danger">
+                    Please correct the errors below.
+                </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="g-2">
+                {% csrf_token %}
+
+                <fieldset class="mb-4">
+                    <legend>Product Details</legend>
+                    {% for field in product_form %}
+                        <div class="row mb-2 align-items-center g-1">
+                            <div class="col-12 col-sm-3 d-flex justify-content-center justify-content-sm-end">
+                                <label for="{{ field.id_for_label }}" 
+                                       class="col-form-label col-form-label-sm text-nowrap">
+                                    {{ field.label }}
+                                </label>
+                            </div>
+                            <div class="col-12 col-sm-8">
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="text-danger small">{{ field.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </fieldset>
+
+                <fieldset class="mb-4">
+                    <legend>Size Prices</legend>
+                    {% for field in size_form %}
+                        <div class="row mb-2 align-items-center g-1">
+                            <div class="col-12 col-sm-3 d-flex justify-content-center justify-content-sm-end">
+                                <label for="{{ field.id_for_label }}" 
+                                       class="col-form-label col-form-label-sm text-nowrap">
+                                    {{ field.label }}
+                                </label>
+                            </div>
+                            <div class="col-12 col-sm-8">
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="text-danger small">{{ field.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </fieldset>
+
+                <div class="text-center mt-3">
+                    <button type="submit" class="btn btn-success px-4">Save Changes</button>
+                    <a href="{% url 'shop:store_detail' product.store.id %}" class="btn btn-secondary px-4 ms-2">Cancel</a>
+                </div>
+            </form>
+
+        </div>
+    </div>
 </div>
 {% endblock %}

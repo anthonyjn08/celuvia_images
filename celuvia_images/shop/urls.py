@@ -23,6 +23,8 @@ urlpatterns = [
          views.edit_store, name="edit_store"),
     path("vendor/stores/<int:store_id>/close/",
          views.close_store, name="close_store"),
+    path("vendor/stores/<int:store_id>/reopen/",
+         views.reopen_store, name="reopen_store"),
 
     # Vendor products
     path("vendor/stores/<int:store_id>/add-product/",
