@@ -6,6 +6,10 @@ from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 
+"""
+FRAME_CHOICES:
+    - Available frame color options for the product.
+"""
 FRAME_CHOICES = [
         ("Black", "Black"),
         ("Oak", "Oak"),
@@ -197,25 +201,15 @@ class Order(models.Model):
         - user: ForeignKey to the User who placed the order.
         - total: DecimalField for order total
         - created_at: DateTimeField for when the order was placed.
-        - status: CharField for the order shipping status.
         - shipping_address: ForeignKey, for shippnig address
         - billing_address: ForeignKey, for billing address
     """
-    STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("processing", "Processing"),
-        ("shipped", "Shipped"),
-        ("delivered", "Delivered"),
-    ]
-
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE, related_name="orders")
     total = models.DecimalField(max_digits=10, decimal_places=2,
                                 default=Decimal(0.00))
     created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(
-        max_length=20, choices=STATUS_CHOICES, default="pending")
     shipping_address = models.ForeignKey("Address", on_delete=models.SET_NULL,
                                          null=True, blank=True,
                                          related_name="shipping_orders")

@@ -9,7 +9,7 @@ Shipping Address:
 {{ order.shipping_address.full_name }}
 {{ order.shipping_address.address_line1 }}
 {% if order.shipping_address.address_line2 %}{{ order.shipping_address.address_line2 }}{% endif %}
-{{ order.shipping_address.town }}
+{% if order.shipping_address.town %}{{ order.shipping_address.town }}{% endif %}
 {{ order.shipping_address.city }}
 {{ order.shipping_address.postcode }}
 {{ order.shipping_address.phone }}
@@ -18,7 +18,7 @@ Billing Address:
 {{ order.billing_address.full_name }}
 {{ order.billing_address.address_line1 }}
 {% if order.billing_address.address_line2 %}{{ order.billing_address.address_line2 }}{% endif %}
-{{ order.billing_address.town }}
+{% if order.billing_address.town %}{{ order.billing_address.town }}{%endif %}
 {{ order.billing_address.city }}
 {{ order.billing_address.postcode }}
 {{ order.billing_address.phone }}
@@ -34,7 +34,7 @@ Items:
 
 Total: £{{ order.total|floatformat:2 }}
 
-We’ll notify you once your order is on its way.  
+Products will arrive within 5 business days.  
 
 Thank you for shopping with us,  
 The Celuvia Images Team

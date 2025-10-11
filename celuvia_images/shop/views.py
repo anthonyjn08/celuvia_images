@@ -10,6 +10,7 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden
 from django.core.paginator import Paginator
 from django.core.mail import EmailMessage
+from collections import defaultdict
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_POST
 from datetime import timedelta
@@ -239,11 +240,10 @@ def category_detail(request, category_slug):
     paginator = Paginator(products, 12)
     page_obj = paginator.get_page(request.GET.get("page"))
 
-    return render(
-        request,
-        "shop/category_detail.html",
-        {"category": category, "products": page_obj},
-    )
+    return render(request, "shop/category.html", {
+        "category": category,
+        "products": page_obj
+        },)
 
 
 @login_required
@@ -806,7 +806,7 @@ def stripe_webhook(request):
             )
         print("Order item passed")
 
-        # Send confirmation
+        # Send customer email confirmation
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
         html_body = render_to_string(
             "shop/order_confirmation_email.txt", {"order": order})
@@ -815,6 +815,30 @@ def stripe_webhook(request):
             subject, html_body, None, [session["customer_email"]])
         email.content_subtype = "html"
         email.send(fail_silently=True)
+
+        # Send store owner notification email
+        store_items = defaultdict(list)
+        for item in order.items.select_related("product__store"):
+            store_items[item.product.store].append(item)
+
+        for store, items in store_items.items():
+            vendor_subject = f"New Order #{order.id} - {store.name}"
+            vendor_context = {
+                "store": store,
+                "order": order,
+                "items": items,
+            }
+            vendor_body = render_to_string(
+                "shop/vendor_order_confirmation_email.html", vendor_context)
+
+            vendor_email = EmailMessage(
+                vendor_subject,
+                vendor_body,
+                None,
+                [store.email],
+            )
+            vendor_email.content_subtype = "html"
+            vendor_email.send(fail_silently=True)
 
     return HttpResponse(status=200)
 

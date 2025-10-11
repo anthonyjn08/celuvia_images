@@ -13,7 +13,7 @@
                     class="form-control me-2" placeholder="Search products">
                 <button type="submit" class="btn btn-outline-secondary me-2">Search</button>
 
-                {% if request.GET.search %}
+                {% if request.GET.search or request.GET.category %}
                     <!-- Show this only if a search is active -->
                     <a href="{% url 'shop:home' %}" class="btn btn-outline-danger">Clear</a>
                 {% endif %}
@@ -21,52 +21,55 @@
         </div>
     </div>
     
+    <!-- Product Cards -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
         {% for product in page_obj %}
-            <div class="col">
-                <div class="card product-card h-100 shadow-sm d-flex flex-column">
-                    {% if product.image %}
-                        <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
-                    {% else %}
-                        <img src="{% static 'shop/img/no-image.jpg' %}" class="card-img-top" alt="No image available">
-                    {% endif %}
-
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title">{{ product.name }}</h5>
-
-                        <p class="card-text mb-1">
-                            {% if product.get_min_price %}
-                                From £{{ product.get_min_price }}
-                            {% else %}
-                                Price not available
-                            {% endif %}
-                        </p>
-
-                        {% if product.get_average_rating %}
-                            <div class="mb-2">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= product.get_average_rating|floatformat:0 %}
-                                        <i class="fas fa-star text-warning"></i>
-                                    {% else %}
-                                        <i class="far fa-star text-warning"></i>
-                                    {% endif %}
-                                {% endfor %}
-                                <small class="text-muted">
-                                    {{ product.get_average_rating|floatformat:1 }}/5 ({{ product.get_review_count }})
-                                </small>
-                            </div>
+            {% if product.is_active %}
+                <div class="col">
+                    <div class="card product-card h-100 shadow-sm d-flex flex-column">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
                         {% else %}
-                            <small class="text-muted mb-2">No reviews yet</small>
+                            <img src="{% static 'shop/img/no-image.jpg' %}" class="card-img-top" alt="No image available">
                         {% endif %}
 
-                        <div class="mt-auto">
-                            <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">
-                            View
-                            </a>
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title">{{ product.name }}</h5>
+
+                            <p class="card-text mb-1">
+                                {% if product.get_min_price %}
+                                    From £{{ product.get_min_price }}
+                                {% else %}
+                                    Price not available
+                                {% endif %}
+                            </p>
+
+                            {% if product.get_average_rating %}
+                                <div class="mb-2">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= product.get_average_rating|floatformat:0 %}
+                                            <i class="fas fa-star text-warning"></i>
+                                        {% else %}
+                                            <i class="far fa-star text-warning"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                    <small class="text-muted">
+                                        {{ product.get_average_rating|floatformat:1 }}/5 ({{ product.get_review_count }})
+                                    </small>
+                                </div>
+                            {% else %}
+                                <small class="text-muted mb-2">No reviews yet</small>
+                            {% endif %}
+
+                            <div class="mt-auto">
+                                <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">
+                                View
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            {% endif %}
         {% empty %}
             <p>No products found.</p>
         {% endfor %}
