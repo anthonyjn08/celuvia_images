@@ -10,11 +10,13 @@
             <!-- Add Store button -->
             <a href="{% url 'shop:add_store' %}" class="btn btn-success mb-3">+ Add New Store</a>
 
-            <!-- List of vendor stores -->
+            <!-- List of current vendor stores -->
             {% if stores %}
                 <div class="list-group">
                     {% for store in stores %}
                         <div class="list-group-item d-flex justify-content-between align-items-center">
+
+                            <!-- Store details -->
                             <div>
                                 <h5>{{ store.name }}</h5>
                                 <p class="mb-0 text-muted">Owner: {{ store.owner.full_name }} | {{ store.email }} | {{ store.phone_number }}</p>
@@ -24,6 +26,8 @@
                                     <span class="badge bg-secondary">Closed</span>
                                 {% endif %}
                             </div>
+
+                            <!-- Store management buttons -->
                             <div>
                                 <a href="{% url 'shop:store_detail' store.id %}" class="btn btn-sm btn-primary">Products</a>
                                 <a href="{% url 'shop:edit_store' store.id %}" class="btn btn-sm btn-warning">Edit Store</a>

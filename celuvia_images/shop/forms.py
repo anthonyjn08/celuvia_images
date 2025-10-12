@@ -60,7 +60,7 @@ class ProductForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # dynamically load categories into the dropdown
+        # Load categories into the dropdown when vendorsd add new product
         self.fields["category"].queryset = Category.objects.all()
         self.fields["category"].empty_label = "Choose an existing category"
 

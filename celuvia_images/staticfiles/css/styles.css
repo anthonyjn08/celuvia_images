@@ -1,4 +1,4 @@
-/* Set Fonts */
+/* Set fonts for headers and body */
 body {
   font-family: "Montserrat", san-serif;
   font-weight: 400;
@@ -19,14 +19,10 @@ h5 {
   color: #222;
 }
 
+/* Navbar and footer styling */
 .navbar-brand {
   font-family: "Raleway", sans-serif;
   font-size: 1.4rem;
-}
-
-footer {
-  font-size: 0.9rem;
-  color: #667;
 }
 
 li a {
@@ -34,6 +30,12 @@ li a {
   color: #333;
 }
 
+footer {
+  font-size: 0.9rem;
+  color: #667;
+}
+
+/* General card and button styling */
 .card {
   border-radius: 0.5rem;
   overflow: hidden;
@@ -47,4 +49,47 @@ li a {
 
 .btn {
   border-radius: 0.375rem;
+}
+
+/* Product card styling */
+.product-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card .card-img-top {
+  object-fit: cover;
+  height: 200px; /* consistent image height */
+}
+
+.product-card .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card .card-body .btn {
+  margin-top: auto;
+}
+
+/* Cart styling */
+.cart-container .cart-card {
+  border-radius: 1rem;
+  background-color: #fff;
+}
+
+.cart-container .cart-card-body p {
+  margin-bottom: 0.35rem;
+}
+
+.cart-container .cart-card img {
+  border-radius: 0.5rem;
+  transition: transform 0.2s ease-in-out;
+}
+
+.cart-container .cart-card img:hover {
+  transform: scale(1.05);
+}
+
+.cart-container a.text-dark:hover {
+  color: #0d6efd; /* Bootstrap primary color */
 }

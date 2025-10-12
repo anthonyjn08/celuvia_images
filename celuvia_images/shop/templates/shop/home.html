@@ -7,13 +7,13 @@
 
     <!-- Search -->
     <div class="row pb-5">
-        <div class="col-5">
+        <div class="col col-md-8 col-lg-6">
             <form method="get" class="d-flex mb-4">
                 <input type="text" name="search" value="{{ request.GET.search }}"
                     class="form-control me-2" placeholder="Search products">
                 <button type="submit" class="btn btn-outline-secondary me-2">Search</button>
 
-                {% if request.GET.search or request.GET.category %}
+                {% if request.GET.search or category %}
                     <!-- Show this only if a search is active -->
                     <a href="{% url 'shop:home' %}" class="btn btn-outline-danger">Clear</a>
                 {% endif %}
@@ -22,17 +22,19 @@
     </div>
     
     <!-- Product Cards -->
-    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mx-3 mx-md-0">
         {% for product in page_obj %}
             {% if product.is_active %}
                 <div class="col">
+                    <!-- Product image -->
                     <div class="card product-card h-100 shadow-sm d-flex flex-column">
                         {% if product.image %}
                             <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}">
                         {% else %}
-                            <img src="{% static 'shop/img/no-image.jpg' %}" class="card-img-top" alt="No image available">
+                            <img src="{% static 'shop/media/no-image.png' %}" class="card-img-top" alt="No image available">
                         {% endif %}
 
+                        <!-- Product name -->
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title">{{ product.name }}</h5>
 
@@ -44,22 +46,27 @@
                                 {% endif %}
                             </p>
 
-                            {% if product.get_average_rating %}
-                                <div class="mb-2">
-                                    {% for i in "12345" %}
-                                        {% if forloop.counter <= product.get_average_rating|floatformat:0 %}
-                                            <i class="fas fa-star text-warning"></i>
-                                        {% else %}
-                                            <i class="far fa-star text-warning"></i>
-                                        {% endif %}
-                                    {% endfor %}
-                                    <small class="text-muted">
-                                        {{ product.get_average_rating|floatformat:1 }}/5 ({{ product.get_review_count }})
-                                    </small>
-                                </div>
-                            {% else %}
-                                <small class="text-muted mb-2">No reviews yet</small>
-                            {% endif %}
+                            <!-- Average ratings and total ratings -->
+                            {% with avg=product.get_average_rating count=product.get_review_count %}
+                                {% if avg %}
+                                    <div class="mb-2">
+                                        {% for i in "12345" %}
+                                            {% if avg >= forloop.counter %}
+                                                <i class="fas fa-star text-warning"></i>
+                                            {% elif avg >= forloop.counter|add:"-0.5" %}
+                                                <i class="fas fa-star-half-alt text-warning"></i>
+                                            {% else %}
+                                                <i class="far fa-star text-warning"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <small class="text-muted">
+                                            {{ avg|floatformat:1 }}/5 ({{ count }})
+                                        </small>
+                                    </div>
+                                {% else %}
+                                    <div class="text-muted mb-2">No reviews yet</div>
+                                {% endif %}
+                            {% endwith %}
 
                             <div class="mt-auto">
                                 <a href="{% url 'shop:product_detail' product.id %}" class="btn btn-primary btn-sm">

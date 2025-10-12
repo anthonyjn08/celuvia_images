@@ -9,8 +9,6 @@ urlpatterns = [
     path("categories", views.category, name="category"),
     path("category/<slug:category_slug>/",
          views.home, name="category_detail"),
-    path("products/category/<slug:category_slug>/",
-         views.home, name="product_list_by_category"),
     path("products/<int:product_id>/",
          views.product_detail, name="product_detail"),
 
@@ -38,14 +36,12 @@ urlpatterns = [
 
     # Vendor orders
     path("vendor/orders/", views.vendor_orders, name="vendor_orders"),
-    path("vendor/orders/update/<int:order_id>/",
-         views.update_order_status, name="update_order_status"),
 
-    # Cart & checkout
+    # Cart
     path("cart/", views.show_cart, name="show_cart"),
     path("cart/update/", views.update_cart, name="update_cart"),
 
-    # Stripe checkout
+    # Checkout & Stripe
     path("checkout/", views.checkout, name="checkout"),
     path("create-checkout-session/",
          views.create_checkout_session, name="create_checkout_session"),

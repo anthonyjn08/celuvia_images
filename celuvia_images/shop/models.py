@@ -165,6 +165,9 @@ class Review(models.Model):
         - comment: TextField for review content.
         - verified: BooleanField, True if buyer purchased the product.
         - created_at: DateTimeField for review creation date.
+
+    Meta:
+        - ordering: sets ordering of user reviews..
     """
     RATING_CHOICES = [
         (1, "1"),
@@ -279,6 +282,9 @@ class Address(models.Model):
         - is_default: BooleanField, used for setting default address
         - is_shipping: BooleanField, used for setting default shipping address
         - is_billing: BooleanField, used for setting default billing address
+
+    Meta:
+        - constraints: maintains unique shipping and billing adresses per user
     """
     user = models.ForeignKey(settings.AUTH_USER_MODEL,
                              on_delete=models.CASCADE,
@@ -330,7 +336,7 @@ class Address(models.Model):
                     "You can only have one default billing address.")
 
     def save(self, *args, **kwargs):
-        self.full_clean()  # triggers clean() before saving
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):

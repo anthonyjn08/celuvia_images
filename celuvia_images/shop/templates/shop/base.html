@@ -15,7 +15,7 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- Google Images -->
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100..900&family=Raleway:wght@100..900&display=swap" rel="stylesheet">
@@ -45,32 +45,13 @@
                     </li>
 
                     <!-- Categories dropdown -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="categoriesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            Categories
-                        </a>
-                        <ul class="dropdown-menu" aria-labelledby="categoriesDropdown">
-                            <li>
-                                <a class="dropdown-item" href="{% url 'shop:category' %}">All Categories</a>
-                            </li>
-                            {% for cat in categories %}
-                                <li>
-                                    <a class="dropdown-item" href="{% url 'shop:category_detail' cat.slug %}">{{ cat.name }}</a>
-                                </li>
-                            {% empty %}
-                                <li><span class="dropdown-item-text text-muted">No categories yet</span></li>
-                            {% endfor %}
-                        </ul>
+                    <li>
+                        <a class="nav-link" href="{% url 'shop:category' %}">Categories</a>
                     </li>
-
+                    
                     {% if user.is_authenticated %}
                         
-                        <!-- Buyer-specific links -->
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'shop:my_orders' %}">My Orders</a>
-                        </li>
-
-                        <!-- Cart always visible -->
+                        <!-- Users cart -->
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'shop:show_cart' %}">Cart</a>
                         </li>
@@ -92,17 +73,18 @@
                             </li>
                         {% endif %}
 
-                        <!-- Profile dropdown -->
+                        <!-- User profile dropdown -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 {{ user.full_name|default:user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                                <li><a class="dropdown-item" href="{% url 'shop:my_orders' %}">My Orders</a></li>
                                 <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Log out</a></li>
                             </ul>
                         </li>
                     {% else %}
-                        <!-- Guest -->
+                        <!-- Anonomous users -->
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'accounts:login' %}">Login</a>
                         </li>

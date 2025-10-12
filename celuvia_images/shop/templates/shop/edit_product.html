@@ -13,9 +13,9 @@
                 </div>
             {% endif %}
 
+            <!-- Product form -->
             <form method="post" enctype="multipart/form-data" class="g-2">
                 {% csrf_token %}
-
                 <fieldset class="mb-4">
                     <legend>Product Details</legend>
                     {% for field in product_form %}
@@ -36,6 +36,7 @@
                     {% endfor %}
                 </fieldset>
 
+                <!-- Size form -->
                 <fieldset class="mb-4">
                     <legend>Size Prices</legend>
                     {% for field in size_form %}
@@ -61,7 +62,6 @@
                     <a href="{% url 'shop:store_detail' product.store.id %}" class="btn btn-secondary px-4 ms-2">Cancel</a>
                 </div>
             </form>
-
         </div>
     </div>
 </div>

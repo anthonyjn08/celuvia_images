@@ -1,0 +1,23 @@
+New Order #{{ order.id }} — {{ store.name }}
+
+Hello {{ store.owner.full_name }},
+
+You have received a new order from {{ order.user.full_name }}.
+Order placed on: {{ order.created_at|date:"j M Y, H:i" }}
+
+Order Details:
+
+{% for item in items %}
+- Product: {{ item.product.name }}
+  Size: {{ item.get_size_display }}
+  Frame Colour: {{ item.frame_colour }}
+  Quantity: {{ item.quantity }}
+  Price: £{{ item.price }}
+  Subtotal: £{{ item.get_subtotal|floatformat:2 }}
+{% endfor %}
+
+Total for your store: £{{ store_total|floatformat:2 }}
+
+You can view your orders by logging into your vendor dashboard.
+
+— Celuvia Images Team

@@ -3,9 +3,13 @@
 {% block content %}
 <div class="container my-5">
     <div class="row">
-        <!-- Image -->
+        <!-- Product image -->
         <div class="col-md-6">
-            <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}">
+            {% if product.image %}
+                <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}">
+            {% else %}
+                <img src="{% static 'shop/media/no-image.png' %}" class="card-img-top" alt="No image available">
+            {% endif %}
         </div>
         <div class="col-md-6">
             <h2>{{ product.name }}</h2>
@@ -13,20 +17,20 @@
             <p>{{ product.description }}</p>
             <h4>Choose your options:</h4>
             <form method="post" action="">
-            {% csrf_token %}
+                {% csrf_token %}
 
-                <!-- Frame Colour -->
+                <!-- Frame colour -->
                 <div class="mb-3">
                     <label for="frame_colour" class="form-label">Frame Colour</label>
                     <select name="frame_colour" id="frame_colour" class="form-select" required>
                         <option value="" disabled selected>Choose a frame colour</option>
                         {% for value, label in FRAME_CHOICES %}
-                        <option value="{{ value }}">{{ label }}</option>
+                            <option value="{{ value }}">{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <!-- Size -->
+                <!-- Frame size -->
                 <div class="mb-3">
                     <label for="size" class="form-label">Size</label>
                     <select name="size" id="size" class="form-select" required>
@@ -37,15 +41,16 @@
                     </select>
                 </div>
 
-                <!-- Quantity -->
+                <!-- Quantity of products -->
                 <div class="mb-3">
                     <label for="quantity" class="form-label">Quantity</label>
                     <input type="number" name="quantity" id="quantity" value="1" min="1" class="form-control" required>
                 </div>
 
-                <!-- Submit -->
+                <!-- Buttons -->
                 <button type="submit" class="btn btn-primary">Add to Cart</button>
                 <a href="{% url 'shop:show_cart' %}" class="btn btn-secondary">View Cart</a>
+                <a href="{% url 'shop:home' %}" class="btn btn-success">Keep Shopping</a>
             </form>
         </div>
     </div>
@@ -54,11 +59,14 @@
 
     <!-- Reviews -->
     <h3>Reviews</h3>
+    <!-- Allows user to add review, form is hidden initially -->
     {% if user.is_authenticated %}
         {% if not user_review %}
             <h4>Leave a Review</h4>
+
+            <!-- Button toggles add review form -->
             <button id="add-review" class="btn btn-primary mb-2">Add Review</button>
-            <form id="review-form" method="post" action="{% url 'shop:add_review' product.id %}">
+            <form id="review-form" method="post" action="{% url 'shop:add_review' product.id %}" style="display:none;">
                 {% csrf_token %}
                 {{ review_form.as_p }}
                 <button type="submit" class="btn btn-success">Submit Review</button>
@@ -68,10 +76,11 @@
         <p><a href="{% url 'accounts:login' %}">Log in</a> to leave a review.</p>
     {% endif %}
 
+    <!-- Displays existing reviews -->
     {% if reviews %}
-        <div class="list-group mb-4">
+        <div class="list-group mb-4 col-5">
             {% for review in reviews %}
-                <div class="list-group-item col-md-6 col-lg-4" data-review-id="{{ review.id }}">
+                <div class="list-group-item" data-review-id="{{ review.id }}">
                     <strong>{{ review.user.full_name }}</strong>
                     <div>
                         {% for i in "12345" %}
@@ -87,10 +96,11 @@
                     {% if review.verified %}
                         <span class="badge bg-success ms-2">Verified</span>
                     {% endif %}
-                    
+
+                    <!-- Edit or delete their existing review -->
                     {% if user == review.user %}
                         <div class="mt-2">
-                            <button class="btn btn-sm btn-outline-primary edit-review">Edit</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary edit-review">Edit</button>
                             <form method="post" action="{% url 'shop:delete_review' review.id %}" class="d-inline delete-review-form">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
@@ -102,8 +112,10 @@
                             {% csrf_token %}
                             <textarea name="comment" class="form-control mb-2">{{ review.comment }}</textarea>
                             <input type="number" name="rating" min="1" max="5" value="{{ review.rating }}" class="form-control mb-2" />
-                            <button type="submit" class="btn btn-sm btn-success">Save</button>
-                            <button type="button" class="btn btn-sm btn-secondary cancel-edit">Cancel</button>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-sm btn-success">Save</button>
+                                <button type="button" class="btn btn-sm btn-secondary cancel-edit">Cancel</button>
+                            </div>
                         </form>
                     {% endif %}
                 </div>
@@ -116,5 +128,6 @@
 
 <!-- Custom JavaScript to toggle review form on or off and allow inline edit/deletion of review -->
 <script src="{% static 'shop/js/product.js' %}"></script>
-<script src="{% static 'shop/js/review_inline.js' %'}"></script>
+<script src="{% static 'shop/js/review.js' %}"></script>
+
 {% endblock %}

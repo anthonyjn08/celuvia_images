@@ -6,13 +6,13 @@
 
     <div class="row justify-content-center">
         <div class="col-lg-8 col-xl-6">
-
             {% if form.errors %}
                 <div class="alert alert-danger">
                     Please correct the errors below.
                 </div>
             {% endif %}
 
+            <!-- Store form -->
             <form method="post" class="g-2">
                 {% csrf_token %}
 
@@ -38,7 +38,6 @@
                     <a href="{% url 'shop:vendor_dashboard' %}" class="btn btn-secondary px-4 ms-2">Cancel</a>
                 </div>
             </form>
-
         </div>
     </div>
 </div>

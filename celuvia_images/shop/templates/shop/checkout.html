@@ -10,7 +10,7 @@
         {% csrf_token %}
         <div class="row g-5">
 
-            <!-- Shipping -->
+            <!-- Shipping address form-->
             <div class="col-md-6">
                 <h4 class="mb-3">Shipping Address</h4>
                 {% for field in shipping_form %}
@@ -27,6 +27,7 @@
                     </div>
                 {% endfor %}
 
+                <!-- Default address checkbox -->
                 <div class="form-check mt-3">
                     <input type="checkbox" name="save_default_address" id="save_default_address" class="form-check-input">
                     <label for="save_default_address" class="form-check-label">
@@ -34,6 +35,7 @@
                     </label>
                 </div>
 
+                <!-- Billing address checkbox -->
                 <div class="form-check mt-3">
                     <input type="checkbox" name="same_billing" id="same_billing" class="form-check-input" {% if same_billing %}checked{% endif %}>
                     <label for="same_billing" class="form-check-label">
@@ -42,7 +44,7 @@
                 </div>
             </div>
 
-            <!-- Billing -->
+            <!-- Billing address form (is hidden if same as delivery checkbox is checked) -->
             <div id="billing-fields" class="col-md-6">
                 <h4 class="mb-3">Billing Address</h4>
                 <div class="ps-3">
@@ -60,13 +62,20 @@
             </div>
         </div>
 
-        <div class="text-center mt-4">
+        <!-- Desktop Buttons -->
+        <div class="text-center mt-4 d-none d-md-block">
             <button type="submit" class="btn btn-primary btn-lg">Proceed to Payment</button>
             <a href="{% url 'shop:home' %}" class="btn btn-lg btn-secondary ms-2">Continue Shopping</a>
+        </div>
+
+        <!-- Mobile buttons -->
+        <div class="text-center mt-4 d-md-none d-block">
+            <button type="submit" class="btn btn-primary btn-sm">Proceed to Payment</button>
+            <a href="{% url 'shop:home' %}" class="btn btn-sm btn-secondary ms-2">Continue Shopping</a>
         </div>
     </form>
 </div>
 
-<!-- Custom JavaScript for copying data from shipping form to billing and pre-loading form with default address -->
+<!-- Custom JavaScript for copying data from shipping form to billing and pre-loading form with default addressed -->
 <script src="{% static 'shop/js/checkout.js' %}"></script>
 {% endblock %}

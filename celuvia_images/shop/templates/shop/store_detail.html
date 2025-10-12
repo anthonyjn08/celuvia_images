@@ -2,11 +2,13 @@
 {% load static %}
 {% block content %}
 <div class="container my-5">
+
+    <!-- Store details -->
     <h2>{{ store.name }}</h2>
     <p class="text-muted">Owner: {{ store.owner.full_name }} | {{ store.email }} | {{ store.phone_number }}</p>
     
-    <!-- Search -->
-    <form method="get" class="d-flex mb-4 col-6">
+    <!-- Search bar -->
+    <form method="get" class="d-flex mb-4 col col-md-8 col-lg-6">
         <input type="text" name="search" value="{{ request.GET.search }}" class="form-control me-2" placeholder="Search products in this store">
         <button type="submit" class="btn btn-outline-secondary">Search</button>
     </form>
@@ -39,19 +41,31 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if product.is_active %}
-                            <a href="{% url 'shop:edit_product' store.id product.id %}" class="btn btn-sm btn-primary">Edit</a>
-                            <a href="{% url 'shop:archive_product' store.id product.id %}" class="btn btn-sm btn-warning">Archive</a>
-                        {% else %}
-                            <a href="{% url 'shop:unarchive_product' store.id product.id %}" class="btn btn-sm btn-success">Unarchive</a>
-                        {% endif %}
+                    {% if product.is_active %}
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+                            
+                            <!-- Regular/small edit buttons (depending on screen size) -->
+                            <a href="{% url 'shop:edit_product' store.id product.id %}" class="btn btn-sm btn-primary d-md-none w-100">Edit</a>
+                            <a href="{% url 'shop:edit_product' store.id product.id %}" class="btn btn-primary d-none d-md-inline w-100">Edit</a>
+
+                            <!-- Regular/small edit buttons (depending on screen size) -->
+                            <a href="{% url 'shop:archive_product' store.id product.id %}" class="btn btn-sm btn-warning d-md-none w-100">Archive</a>
+                            <a href="{% url 'shop:archive_product' store.id product.id %}" class="btn btn-warning d-none d-md-inline w-100">Archive</a>
+                        </div>
+                    {% else %}
+                        <div class="d-flex flex-column flex-sm-row gap-2">
+                            <!-- Regular/small edit buttons (depending on screen size) -->
+                            <a href="{% url 'shop:unarchive_product' store.id product.id %}" class="btn btn-sm btn-success d-md-none w-100">Unarchive</a>
+                            <a href="{% url 'shop:unarchive_product' store.id product.id %}" class="btn btn-success d-none d-md-inline w-100">Unarchive</a>
+                        </div>
+                    {% endif %}
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     {% else %}
-      <p>No products available yet.</p>
+        <p>No products available yet.</p>
     {% endif %}
     <a href="{% url 'shop:vendor_dashboard' %}" class="btn btn-secondary mt-3">Back to Dashboard</a>
 </div>

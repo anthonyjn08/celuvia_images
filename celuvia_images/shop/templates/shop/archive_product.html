@@ -6,6 +6,7 @@
     <p>Are you sure you want to archive <strong>{{ product.name }}</strong>? 
     It will no longer be available for purchase, but will be kept in order history.</p>
 
+    <!-- Archive product form -->
     <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-warning">Yes, Archive</button>

@@ -51,6 +51,17 @@ class User(AbstractUser):
 
 
 class ResetToken(models.Model):
+    """
+    Stores a password reset token for a user.
+
+    Fields:
+        - user: Foriegn key, the user requesting password reset.
+        - token: CharField, the unique password token to verify the
+          reset link.
+        - expiry_date: DateTimeField, the date and time of the reset
+          token expires.
+        - used: BooleanField, sets whether the token has already been used.
+    """
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.CharField(max_length=500)
     expiry_date = models.DateTimeField()

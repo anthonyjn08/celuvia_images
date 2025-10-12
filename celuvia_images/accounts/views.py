@@ -18,10 +18,11 @@ User = get_user_model()
 
 def buyer_signup(request):
     """
-    Buyer signup.
+    Allows new users to signup as a buyer.
 
     - param request: HTTP request object.
-    - return: Rendered template of products.
+    - return: Redirect to home on successful signup, or rendered buyer
+      signup form on GET.
     """
     if request.method == "POST":
         form = BuyerSignUpForm(request.POST)
@@ -43,10 +44,11 @@ def buyer_signup(request):
 
 def vendor_signup(request):
     """
-    Vendor signup.
+    Allows new users to signup as a vendor and sell products.
 
     - param request: HTTP request object.
-    - return: Rendered template of vendor dashboard.
+    - return: Redirect to vendor dashboard on successful signup, or
+      rendered vendor signup form on GET.
     """
     if request.method == "POST":
         form = VendorSignUpForm(request.POST)
@@ -67,10 +69,11 @@ def vendor_signup(request):
 
 def login_view(request):
     """
-    Login view.
+    Handle user login.
 
     - param request: HTTP request object.
-    - return: Rendered template of vendor dashboard.
+    - return: redirect to home if login successful, or rendered login
+      form template on GET or failed login.
     """
     if request.method == "POST":
         form = LoginForm(request.POST)
@@ -97,10 +100,10 @@ def login_view(request):
 @login_required
 def logout_view(request):
     """
-    Log the user out.
+    Handle user logout and direct them back to the homepage.
 
     - param request: HTTP request object.
-    - return: Rendered template of the logout form.
+    - return: redirect to home page after logout.
     """
     logout(request)
     messages.info(request, "You have been logged out.")
@@ -109,10 +112,11 @@ def logout_view(request):
 
 def request_password_reset(request):
     """
-    View for users to request a password reset email.
+    Handle password reset request.
 
     - param request: HTTP request object.
-    - return: Rendered template of password reset page.
+    - return: rendered confirmation template after POST, or password
+      reset request form on GET.
     """
     if request.method == "POST":
         email = request.POST.get("email")
@@ -153,11 +157,12 @@ def request_password_reset(request):
 
 def reset_password(request, token):
     """
-    Password reset.
+    Handles users password reset via the reset token.
 
     - param request: HTTP request object.
-    - param token: Reset token to verify users identity.
-    - return: Rendered template of vendor dashboard.
+    - param token: unique token used to validate password reset request.
+    - return: redirect to login on success, rendered reset form on GET,
+      or invalid token template if expired or invalid.
     """
     token_hash = sha1(token.encode()).hexdigest()
     try:

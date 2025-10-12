@@ -115,18 +115,12 @@ class LoginForm(forms.Form):
         - email: EmailField, users email (username) address
         - password: CharField, users password
     """
-    email = forms.EmailField(
-        widget=forms.EmailInput(attrs={
-            "class": "form-control",
-            "placeholder": "Email address"
-        }),
+    email = forms.EmailField(widget=forms.EmailInput(
+        attrs={"class": "form-control", "placeholder": "Email address"}),
         label="Email",
     )
-    password = forms.CharField(
-        widget=forms.PasswordInput(attrs={
-            "class": "form-control",
-            "placeholder": "Password"
-        }),
+    password = forms.CharField(widget=forms.PasswordInput(
+        attrs={"class": "form-control", "placeholder": "Password"}),
         label="Password",
     )
 

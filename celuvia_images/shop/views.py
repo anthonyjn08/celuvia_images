@@ -12,7 +12,6 @@ from django.core.paginator import Paginator
 from django.core.mail import EmailMessage
 from collections import defaultdict
 from django.template.loader import render_to_string
-from django.views.decorators.http import require_POST
 from datetime import timedelta
 from decimal import Decimal
 from .models import (Store, Product, Category, Size, Order, OrderItem, Review,
@@ -27,6 +26,11 @@ def home(request, category_slug=None):
     """
     Stores landing page, showing list of products with pagination and optional
     filtering by category.
+
+    - param request: HTTP request object.
+    - param category_slug: optional slug to filter products by category.
+    - return: rendered template with categories, selected category, and
+      paginated products.
     """
     category = None
     categories = Category.objects.all()
@@ -54,7 +58,10 @@ def home(request, category_slug=None):
 @login_required
 def vendor_dashboard(request):
     """
-    Dashboard for a vendor to manage their store(s).
+    Dashboard for a vendor to manage their store(s) and store product.
+
+    - param request: HTTP request object.
+    - return: rendered template showing vendor stores.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -67,7 +74,12 @@ def vendor_dashboard(request):
 @login_required
 def store_detail(request, store_id):
     """
-    Detail page for managing a stores products.
+    Detail page for allow owners to manage a stores products.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store to display.
+    - return: rendered template with store and product details, or forbidden
+      response if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -79,14 +91,20 @@ def store_detail(request, store_id):
     if search:
         products = products.filter(name__icontains=search)
 
-    return render(request, "shop/store_detail.html",
-                  {"store": store, "products": products})
+    return render(request, "shop/store_detail.html", {
+        "store": store,
+        "products": products
+        })
 
 
 @login_required
 def add_store(request):
     """
-    View to create a new store. Restricted to vendors only.
+    View to a vendor to create a new store.
+
+    - param request: HTTP request object.
+    - return: redirect to vendor dashboard on success, rendered form template
+      on GET request or forbidden response if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -109,7 +127,12 @@ def add_store(request):
 @login_required
 def edit_store(request, store_id):
     """
-    Edit an existing store. Restricted to store owner.
+    Allows a store owner to edit an existing store.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store to edit.
+    - return: redirect to vendor dashboard on success, or forbidden response if
+      user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -123,14 +146,18 @@ def edit_store(request, store_id):
             return redirect("shop:vendor_dashboard")
     else:
         form = StoreForm(instance=store)
-    return render(request, "shop/edit_store.html",
-                  {"form": form, "store": store})
+        return redirect("shop:vendor_dashboard")
 
 
 @login_required
 def close_store(request, store_id):
     """
-    Allows an owner to close a store
+    Allows a store owner to close a store to keep order history.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store to close.
+    - return: redirect to vendor dashboard on success, or forbidden response
+      if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -141,13 +168,19 @@ def close_store(request, store_id):
         store.save()
         messages.info(request, f"Store '{store.name}' has been closed.")
         return redirect("shop:vendor_dashboard")
+    
     return render(request, "shop/close_store.html", {"store": store})
 
 
 @login_required
 def reopen_store(request, store_id):
     """
-    Allows an owner to close a store
+    Allows an owner to reopen a closed store.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store to reopen.
+    - return: rendered reopen confirmation template or redirect after
+      reopening, or forbidden response if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -164,7 +197,11 @@ def reopen_store(request, store_id):
 @login_required
 def vendor_orders(request):
     """
-    Allows vendors view to orders from their stores.
+    Allows a store owner to view orders from their store(s).
+
+    - param request: HTTP request object.
+    - return: rendered template showing vendor orders, or forbidden response
+      if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -172,21 +209,22 @@ def vendor_orders(request):
     store_id = request.GET.get("store_id")
     selected_store = int(store_id) if store_id else None
     stores = request.user.stores.all()
-    items_qs = OrderItem.objects.filter(
+    items = OrderItem.objects.filter(
         product__store__owner=request.user
-    ).select_related("order", "product", "order__user")
+    ).select_related("order", "product", "order__user", "product__store")
 
     if selected_store:
-        items_qs = items_qs.filter(product__store_id=selected_store)
+        items = items.filter(product__store_id=selected_store)
 
-    orders = {}
-    for item in items_qs:
-        orders.setdefault(item.order, []).append(item)
+    orders = defaultdict(list)
+    for item in items:
+        orders[item.order].append(item)
 
-    return render(
-        request,
-        "shop/vendor_orders.html",
-        {
+    for order_obj, order_items in orders.items():
+        order_obj.vendor_total = sum(
+            item.get_subtotal() for item in order_items)
+
+    return render(request, "shop/vendor_orders.html", {
             "orders": orders,
             "stores": stores,
             "selected_store": selected_store,
@@ -194,62 +232,26 @@ def vendor_orders(request):
     )
 
 
-@login_required
-@require_POST
-def update_order_status(request, order_id):
-    """
-    Allows vendors to update the status of orders from their stores.
-    """
-    if not request.user.is_vendor():
-        return HttpResponseForbidden()
-    order = get_object_or_404(Order, id=order_id)
-    has_items = OrderItem.objects.filter(
-        order=order, product__store__owner=request.user).exists()
-    if not has_items:
-        return HttpResponseForbidden()
-
-    new_status = request.POST.get("status")
-    if new_status not in dict(Order.STATUS_CHOICES):
-        messages.error(request, "Invalid status.")
-    else:
-        order.status = new_status
-        order.save()
-        messages.success(request, f"Order #{order.id} status updated.")
-    return redirect("shop:vendor_orders")
-
-
 def category(request):
     """
-    Category page allowing users to filter and view available categories.
+    Category page allowing users to filter and view products by category.
+
+    - param request: HTTP request object.
+    - return: rendered template with all categories.
     """
     categories = Category.objects.all()
     return render(request, "shop/category.html", {"categories": categories})
 
 
-def category_detail(request, category_slug):
-    """
-    Allows users to view products by category.
-    """
-    category = get_object_or_404(Category, slug=category_slug)
-    products = Product.objects.filter(category=category, store__is_active=True)
-
-    search = request.GET.get("search")
-    if search:
-        products = products.filter(name__icontains=search)
-
-    paginator = Paginator(products, 12)
-    page_obj = paginator.get_page(request.GET.get("page"))
-
-    return render(request, "shop/category.html", {
-        "category": category,
-        "products": page_obj
-        },)
-
-
 @login_required
 def add_product(request, store_id):
     """
-    Allows owner to add new products.
+    Allows a store owner to add new products to their selected store.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store where product is added.
+    - return: redirect to store detail on success, or rendered form template,
+      or forbidden response if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -272,7 +274,7 @@ def add_product(request, store_id):
             product.store = store
             product.save()
 
-            # save size info
+            # save size form info
             size = size_form.save(commit=False)
             size.product = product
             size.save()
@@ -284,17 +286,24 @@ def add_product(request, store_id):
         product_form = ProductForm()
         size_form = SizeForm()
 
-    return render(
-        request,
-        "shop/add_product.html",
-        {"product_form": product_form, "size_form": size_form, "store": store},
+    return render(request, "shop/add_product.html", {
+            "product_form": product_form,
+            "size_form": size_form,
+            "store": store
+            },
     )
 
 
 @login_required
 def edit_product(request, store_id, product_id):
     """
-    Allows owner to edit existing products.
+    Allows a store owner to edit an existing product.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store containing the product.
+    - param product_id: ID of the product to edit.
+    - return: redirect to store detail on success, or rendered edit form,
+      or forbidden response if user is not a vendor.
     """
     if not request.user.is_vendor():
         return HttpResponseForbidden()
@@ -344,8 +353,14 @@ def edit_product(request, store_id, product_id):
 @login_required
 def archive_product(request, store_id, product_id):
     """
-    Archive a product so it's no longer available to buy
+    Allows a store owner toArchive a product so it's no longer available to buy
     but is kept for order history.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store containing the product.
+    - param product_id: ID of the product to archive.
+    - return: redirect to store detail on success, or rendered archive
+      confirmation template.
     """
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     product = get_object_or_404(Product, id=product_id, store=store)
@@ -357,17 +372,24 @@ def archive_product(request, store_id, product_id):
                          f"Product '{product.name}' archived successfully.")
         return redirect("shop:store_detail", store_id=store.id)
 
-    return render(
-        request,
-        "shop/archive_product.html",
-        {"store": store, "product": product},
+    return render(request, "shop/archive_product.html", {
+        "store": store,
+        "product": product
+        },
     )
 
 
 @login_required
 def unarchive_product(request, store_id, product_id):
     """
-    Unarchive a product so it becomes available to buy again.
+    Allows a store owner to unarchive a product so it becomes available
+    to buy again.
+
+    - param request: HTTP request object.
+    - param store_id: ID of the store containing the product.
+    - param product_id: ID of the product to unarchive.
+    - return: redirect to store detail on success, or rendered unarchive
+      confirmation template.
     """
     store = get_object_or_404(Store, id=store_id, owner=request.user)
     product = get_object_or_404(Product, id=product_id, store=store)
@@ -381,16 +403,22 @@ def unarchive_product(request, store_id, product_id):
 
         return redirect("shop:store_detail", store_id=store.id)
 
-    return render(
-        request,
-        "shop/unarchive_product.html",
-        {"store": store, "product": product},
+    return render(request, "shop/unarchive_product.html", {
+        "store": store,
+        "product": product
+        },
     )
 
 
 def product_detail(request, product_id):
     """
-    Product detail view. Users can add items to cart.
+    Shows the product detail view, displaying product information.
+    Users can add items to cart.
+
+    - param request: HTTP request object.
+    - param product_id: ID of the product to display.
+    - return: rendered product detail template or redirect after form
+      submission.
     """
     product = get_object_or_404(Product, id=product_id)
     reviews = product.reviews.all().order_by("created_at")
@@ -454,15 +482,26 @@ def product_detail(request, product_id):
     })
 
 
-# utils function to generate cart key
 def get_cart_key(product_id, size, frame_colour):
-    """Generate a unique key for each cart item."""
+    """
+    Generate a unique cart key for each each product aded to a cart.
+
+    - param product_id: ID of the product.
+    - param size: selected size for the product.
+    - param frame_colour: selected frame colour.
+    - return: string key combining product ID, size, and frame colour.
+    """
     return f"{product_id}-{size}-{frame_colour}"
 
 
 def add_to_cart(request, product_id):
     """
-    View to add items to cart.
+    Allows users to add items to cart.
+
+    - param request: HTTP request object.
+    - param product_id: ID of the product to add.
+    - return: redirect to product detail if price missing, otherwise to
+      the cart page.
     """
     product = get_object_or_404(Product, id=product_id)
     size = request.POST.get("size")
@@ -517,6 +556,9 @@ def add_to_cart(request, product_id):
 def show_cart(request):
     """
     View for showing the current user's cart.
+
+    - param request: HTTP request object.
+    - return: rendered cart template with all items and total amount.
     """
     cart = request.session.get("cart", {})
 
@@ -550,6 +592,9 @@ def show_cart(request):
 def update_cart(request):
     """
     Allows users to update or remove items in cart.
+
+    - param request: HTTP request object.
+    - return: redirect to updated cart view.
     """
     if request.method == "POST":
         cart = request.session.get("cart", {})
@@ -582,7 +627,11 @@ def update_cart(request):
 @login_required
 def create_checkout_session(request):
     """
-    Creates a Stripe Checkout session with the current cart.
+    Creates a stripe Checkout session with the current cart.
+
+    - param request: HTTP request object.
+    - return: redirect to Stripe checkout session or cart page if
+      checkout fails or cart is empty.    
     """
     stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -593,7 +642,7 @@ def create_checkout_session(request):
         messages.error(request, "Your cart is empty.")
         return redirect("shop:show_cart")
 
-    # --- Build line items ---
+    # Build line items
     line_items = []
     for entry in cart.values():
         product = Product.objects.get(id=entry["product_id"])
@@ -608,6 +657,7 @@ def create_checkout_session(request):
             "quantity": entry["quantity"],
         })
 
+    # Create the stripe checkout session
     try:
         checkout_session = stripe.checkout.Session.create(
             payment_method_types=["card"],
@@ -630,7 +680,11 @@ def create_checkout_session(request):
 @login_required
 def checkout(request):
     """
-    Alternate checkout entrypoint (creates a session).
+    Displays the shipping and billing forms, then starts checkout process.
+
+    - param request: HTTP request object.
+    - return: redirect to stripe session on POST, or rendered checkout
+      template with shipping details, or redirect if cart empty.
     """
     user = request.user
     cart = request.session.get("cart", {})
@@ -673,7 +727,6 @@ def checkout(request):
         "phone": (default_billing.phone if default_billing else ""),
     }
 
-    # --- Handle POST ---
     if request.method == "POST":
         shipping_form = CheckoutAddressForm(request.POST, prefix="shipping")
         same_billing = request.POST.get("same_billing") == "on"
@@ -730,7 +783,10 @@ def checkout(request):
 @csrf_exempt
 def stripe_webhook(request):
     """
-    Handles Stripe webhook events securely.
+    Handles stripes webhook events securely.
+
+    - param request: HTTP request object.
+    - return: HTTP 200 on success, or 400 if verification fails.
     """
     payload = request.body
     sig_header = request.META.get("HTTP_STRIPE_SIGNATURE")
@@ -774,7 +830,7 @@ def stripe_webhook(request):
                 defaults={**billing_data, "is_default": True},
             )
 
-        # Calculate total
+        # Calculates carts total
         cart = metadata.get("cart", "{}")
         if isinstance(cart, str):
             cart = json.loads(cart)
@@ -782,7 +838,7 @@ def stripe_webhook(request):
         total = sum(Decimal(
             item["price"]) * int(item["quantity"]) for item in cart.values())
 
-        # Create order
+        # Creates order
         order = Order.objects.create(
             user=user,
             total=total,
@@ -808,12 +864,11 @@ def stripe_webhook(request):
 
         # Send customer email confirmation
         subject = f"Celuvia Images - Order Confirmation #{order.id}"
-        html_body = render_to_string(
+        body = render_to_string(
             "shop/order_confirmation_email.txt", {"order": order})
 
         email = EmailMessage(
-            subject, html_body, None, [session["customer_email"]])
-        email.content_subtype = "html"
+            subject, body, None, [session["customer_email"]])
         email.send(fail_silently=True)
 
         # Send store owner notification email
@@ -822,31 +877,35 @@ def stripe_webhook(request):
             store_items[item.product.store].append(item)
 
         for store, items in store_items.items():
+
+            # Get owner total per store
+            store_total = sum(Decimal(item.get_subtotal()) for item in items)
+
             vendor_subject = f"New Order #{order.id} - {store.name}"
             vendor_context = {
                 "store": store,
                 "order": order,
                 "items": items,
+                "store_total": store_total
             }
             vendor_body = render_to_string(
-                "shop/vendor_order_confirmation_email.html", vendor_context)
+                "shop/vendor_order_confirmation_email.txt", vendor_context
+            )
 
             vendor_email = EmailMessage(
-                vendor_subject,
-                vendor_body,
-                None,
-                [store.email],
-            )
-            vendor_email.content_subtype = "html"
+                vendor_subject, vendor_body, None, [store.email],)
             vendor_email.send(fail_silently=True)
-
     return HttpResponse(status=200)
 
 
 @login_required
 def checkout_success(request):
     """
-    View shown after successful payment.
+    Users are redirected here after successful payment on stripe external
+    checkout.
+
+    - param request: HTTP request object.
+    - return: rendered checkout success template.
     """
     if "cart" in request.session:
         request.session["cart"] = {}
@@ -858,7 +917,11 @@ def checkout_success(request):
 @login_required
 def checkout_cancel(request):
     """
-    View if user cancels payment.
+    If user clicks 'back' on stripe external page they're redirected
+    here.
+
+    - param request: HTTP request object.
+    - return: rendered checkout cancel template.
     """
     return render(request, "shop/checkout_cancel.html")
 
@@ -866,7 +929,13 @@ def checkout_cancel(request):
 @login_required
 def add_review(request, product_id):
     """
-    Allows users to review products.
+    Allows users to add review products. If they have purchased the item
+    then there reviews displays as verified.
+
+    - param request: HTTP request object.
+    - param product_id: ID of the product being reviewed.
+    - return: redirect to product detail after POST, or rendered review
+      form template on GET.
     """
     product = get_object_or_404(Product, id=product_id)
     if request.method == "POST":
@@ -894,27 +963,36 @@ def add_review(request, product_id):
 @login_required
 def edit_review(request, review_id):
     """
-    Allows users to edit their review.
+    Handles inline editing of a users reviews on the product detail page.
+
+    - param request: HTTP request object.
+    - param review_id: ID of the review to edit.
+    - return: redirect to related product detail after update.
     """
     review = get_object_or_404(Review, id=review_id, user=request.user)
+
     if request.method == "POST":
         form = ReviewForm(request.POST, instance=review)
         if form.is_valid():
             form.save()
-            messages.success(request, "Review updated.")
-            return redirect(
-                "shop:product_detail", product_id=review.product.id)
+            messages.success(request, "Your review was updated successfully.")
+        else:
+            messages.error(
+                request, "There was a problem updating your review.")
+        return redirect("shop:product_detail", product_id=review.product.id)
 
-    else:
-        form = ReviewForm(instance=review)
-    return render(request, "shop/edit_review.html",
-                  {"form": form, "review": review})
+    return redirect("shop:product_detail", product_id=review.product.id)
 
 
 @login_required
 def delete_review(request, review_id):
     """
-    Allows users to delete their review.
+    Allows a user to delete their product review.
+
+    - param request: HTTP request object.
+    - param review_id: ID of the review to delete.
+    - return: redirect to product detail after deletion, or rendered delete
+      confirmation template.
     """
     review = get_object_or_404(Review, id=review_id, user=request.user)
     if request.method == "POST":
@@ -928,7 +1006,10 @@ def delete_review(request, review_id):
 @login_required
 def my_orders(request):
     """
-    Allows users to see their order history.
+    Allows users to view their order history.
+
+    - param request: HTTP request object.
+    - return: rendered template listing user orders.
     """
     orders = request.user.orders.all().order_by("created_at")
     return render(request, "shop/my_orders.html", {"orders": orders})

@@ -1,7 +1,10 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from accounts.models import User
+from django.contrib.auth import get_user_model
 from .models import Address
+
+# Get custom user model
+User = get_user_model()
 
 
 @receiver(post_save, sender=User)
@@ -10,6 +13,8 @@ def create_user_address(sender, instance, created, **kwargs):
     Automatically creates an address for the user in the shop app after they
     fill in the address details on signup. Is also set to the default for
     default address, shipping address and billing address.
+
+    sender not used; but is required by signal signature
     """
     if created:
         if instance.address_1 or instance.city or instance.post_code:
