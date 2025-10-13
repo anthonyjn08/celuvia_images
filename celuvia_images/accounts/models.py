@@ -1,6 +1,36 @@
 from django.contrib.auth.models import AbstractUser
-from django.db import models
+from django.contrib.auth.base_user import BaseUserManager
 from django.utils.timezone import now
+from django.db import models
+
+
+class CustomUserManager(BaseUserManager):
+    """
+    Custom user manager where email is the unique identifier
+    instead of username.
+    """
+    def create_user(
+            self, email, first_name, last_name, password=None, **extra_fields
+            ):
+        if not email:
+            raise ValueError("The Email field must be set")
+        email = self.normalize_email(email)
+        user = self.model(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            **extra_fields
+            )
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(
+            self, email, first_name, last_name, password=None, **extra_fields):
+        extra_fields.setdefault("is_staff", True)
+        extra_fields.setdefault("is_superuser", True)
+        return self.create_user(
+            email, first_name, last_name, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -22,7 +52,6 @@ class User(AbstractUser):
         - password1: CharField, password.
         - password2: CharField, password.
     """
-
     username = None
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -37,6 +66,8 @@ class User(AbstractUser):
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
+
+    objects = CustomUserManager()
 
     def save(self, *args, **kwargs):
         if not self.full_name:
