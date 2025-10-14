@@ -168,7 +168,7 @@ def close_store(request, store_id):
         store.save()
         messages.info(request, f"Store '{store.name}' has been closed.")
         return redirect("shop:vendor_dashboard")
-    
+
     return render(request, "shop/close_store.html", {"store": store})
 
 
@@ -631,7 +631,7 @@ def create_checkout_session(request):
 
     - param request: HTTP request object.
     - return: redirect to Stripe checkout session or cart page if
-      checkout fails or cart is empty.    
+      checkout fails or cart is empty.
     """
     stripe.api_key = settings.STRIPE_SECRET_KEY
 

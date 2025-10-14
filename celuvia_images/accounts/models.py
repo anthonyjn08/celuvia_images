@@ -6,12 +6,17 @@ from django.db import models
 
 class CustomUserManager(BaseUserManager):
     """
-    Custom user manager where email is the unique identifier
-    instead of username.
+    Manager for CustomUser model.
+
+    Provides helper methods to create regular users and superusers
+    with email as the unique identifier instead of username.
     """
     def create_user(
             self, email, first_name, last_name, password=None, **extra_fields
             ):
+        """
+        Create and save a regular user using the enrtered email and password.
+        """
         if not email:
             raise ValueError("The Email field must be set")
         email = self.normalize_email(email)
@@ -27,6 +32,9 @@ class CustomUserManager(BaseUserManager):
 
     def create_superuser(
             self, email, first_name, last_name, password=None, **extra_fields):
+        """
+        Create and save a superuser using the enrtered email and password.
+        """
         extra_fields.setdefault("is_staff", True)
         extra_fields.setdefault("is_superuser", True)
         return self.create_user(

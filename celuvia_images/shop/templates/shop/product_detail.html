@@ -2,9 +2,9 @@
 {% load static %}
 {% block content %}
 <div class="container my-5">
-    <div class="row">
+    <div class="row px-4">
         <!-- Product image -->
-        <div class="col-md-6">
+        <div class="col-md-6 mb-4">
             {% if product.image %}
                 <img src="{{ product.image.url }}" class="img-fluid rounded" alt="{{ product.name }}">
             {% else %}
@@ -33,6 +33,7 @@
                 <!-- Frame size -->
                 <div class="mb-3">
                     <label for="size" class="form-label">Size</label>
+                        <p class="text-muted"><small>sizes (inches: w x h) S: 12 x 8 M: 18 x 12 L: 24 x 16</small></p>
                     <select name="size" id="size" class="form-select" required>
                         <option value="" disabled selected>Choose a size</option>
                         <option value="S">Small (£{{ product.sizes.small_price }})</option>
@@ -47,83 +48,93 @@
                     <input type="number" name="quantity" id="quantity" value="1" min="1" class="form-control" required>
                 </div>
 
-                <!-- Buttons -->
-                <button type="submit" class="btn btn-primary">Add to Cart</button>
-                <a href="{% url 'shop:show_cart' %}" class="btn btn-secondary">View Cart</a>
-                <a href="{% url 'shop:home' %}" class="btn btn-success">Keep Shopping</a>
+                <div class="d-flex flex-column flex-md-row gap-2">
+                    <!-- Regular Buttons -->
+                    <button type="submit" class="btn btn-primary d-none d-lg-block">Add to Cart</button>
+                    <a href="{% url 'shop:show_cart' %}" class="btn btn-secondary d-none d-lg-block">View Cart</a>
+                    <a href="{% url 'shop:home' %}" class="btn btn-success d-none d-lg-block">Keep Shopping</a>
+
+                    <!-- Small Screen Buttons -->
+                    <button type="submit" class="btn btn-primary btn-sm d-lg-none">Add to Cart</button>
+                    <a href="{% url 'shop:show_cart' %}" class="btn btn-secondary btn-sm d-lg-none">View Cart</a>
+                    <a href="{% url 'shop:home' %}" class="btn btn-success btn-sm d-lg-none">Keep Shopping</a>
+                </div>
             </form>
         </div>
     </div>
 
     <hr class="my-5">
 
-    <!-- Reviews -->
-    <h3>Reviews</h3>
-    <!-- Allows user to add review, form is hidden initially -->
-    {% if user.is_authenticated %}
-        {% if not user_review %}
-            <h4>Leave a Review</h4>
+    <div class="px-4 px-md-0">
 
-            <!-- Button toggles add review form -->
-            <button id="add-review" class="btn btn-primary mb-2">Add Review</button>
-            <form id="review-form" method="post" action="{% url 'shop:add_review' product.id %}" style="display:none;">
-                {% csrf_token %}
-                {{ review_form.as_p }}
-                <button type="submit" class="btn btn-success">Submit Review</button>
-            </form>
+        <!-- Reviews -->
+        <h3>Reviews</h3>
+        <!-- Allows user to add review, form is hidden initially -->
+        {% if user.is_authenticated %}
+            {% if not user_review %}
+                <h4>Leave a Review</h4>
+
+                <!-- Button toggles add review form -->
+                <button id="add-review" class="btn btn-primary mb-2">Add Review</button>
+                <form id="review-form" method="post" action="{% url 'shop:add_review' product.id %}" style="display:none;">
+                    {% csrf_token %}
+                    {{ review_form.as_p }}
+                    <button type="submit" class="btn btn-success">Submit Review</button>
+                </form>
+            {% endif %}
+        {% else %}
+            <p><a href="{% url 'accounts:login' %}">Log in</a> to leave a review.</p>
         {% endif %}
-    {% else %}
-        <p><a href="{% url 'accounts:login' %}">Log in</a> to leave a review.</p>
-    {% endif %}
 
-    <!-- Displays existing reviews -->
-    {% if reviews %}
-        <div class="list-group mb-4 col-5">
-            {% for review in reviews %}
-                <div class="list-group-item" data-review-id="{{ review.id }}">
-                    <strong>{{ review.user.full_name }}</strong>
-                    <div>
-                        {% for i in "12345" %}
-                            {% if forloop.counter <= review.rating %}
-                                <i class="fas fa-star text-warning"></i>
-                            {% else %}
-                                <i class="far fa-star text-warning"></i>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                    <p class="mb-1 review-comment">{{ review.comment }}</p>
-                    <small class="text-muted">{{ review.created_at|date:"j M Y" }}</small>
-                    {% if review.verified %}
-                        <span class="badge bg-success ms-2">Verified</span>
-                    {% endif %}
-
-                    <!-- Edit or delete their existing review -->
-                    {% if user == review.user %}
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-outline-primary edit-review">Edit</button>
-                            <form method="post" action="{% url 'shop:delete_review' review.id %}" class="d-inline delete-review-form">
-                                {% csrf_token %}
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                            </form>
+        <!-- Displays existing reviews -->
+        {% if reviews %}
+            <div class="list-group mb-4 col-5">
+                {% for review in reviews %}
+                    <div class="list-group-item" data-review-id="{{ review.id }}">
+                        <strong>{{ review.user.full_name }}</strong>
+                        <div>
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= review.rating %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
                         </div>
+                        <p class="mb-1 review-comment">{{ review.comment }}</p>
+                        <small class="text-muted">{{ review.created_at|date:"j M Y" }}</small>
+                        {% if review.verified %}
+                            <span class="badge bg-success ms-2">Verified</span>
+                        {% endif %}
 
-                        <!-- Inline edit form (hidden initially) -->
-                        <form method="post" action="{% url 'shop:edit_review' review.id %}" class="edit-review-form mt-2" style="display:none;">
-                            {% csrf_token %}
-                            <textarea name="comment" class="form-control mb-2">{{ review.comment }}</textarea>
-                            <input type="number" name="rating" min="1" max="5" value="{{ review.rating }}" class="form-control mb-2" />
-                            <div class="d-flex gap-2">
-                                <button type="submit" class="btn btn-sm btn-success">Save</button>
-                                <button type="button" class="btn btn-sm btn-secondary cancel-edit">Cancel</button>
+                        <!-- Edit or delete their existing review -->
+                        {% if user == review.user %}
+                            <div class="mt-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary edit-review">Edit</button>
+                                <form method="post" action="{% url 'shop:delete_review' review.id %}" class="d-inline delete-review-form">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
                             </div>
-                        </form>
-                    {% endif %}
-                </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <p>No reviews yet. Be the first to review!</p>
-    {% endif %}
+
+                            <!-- Inline edit form (hidden initially) -->
+                            <form method="post" action="{% url 'shop:edit_review' review.id %}" class="edit-review-form mt-2" style="display:none;">
+                                {% csrf_token %}
+                                <textarea name="comment" class="form-control mb-2">{{ review.comment }}</textarea>
+                                <input type="number" name="rating" min="1" max="5" value="{{ review.rating }}" class="form-control mb-2" />
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-sm btn-success">Save</button>
+                                    <button type="button" class="btn btn-sm btn-secondary cancel-edit">Cancel</button>
+                                </div>
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>No reviews yet. Be the first to review!</p>
+        {% endif %}
+    </div>
 </div>
 
 <!-- Custom JavaScript to toggle review form on or off and allow inline edit/deletion of review -->

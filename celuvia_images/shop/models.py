@@ -197,9 +197,6 @@ class Order(models.Model):
     """
     Model representing a buyer's order.
 
-    STATUS_CHOICES:
-        - Status of order
-
     Fields:
         - user: ForeignKey to the User who placed the order.
         - total: DecimalField for order total
