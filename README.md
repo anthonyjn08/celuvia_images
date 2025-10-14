@@ -78,6 +78,17 @@ upload new and manage products through a vendor dashboard.
 
 ## Data Models
 
+Below are the models I used in each app.
+
+Once I had made a start on the project, I realised that I would need more models than I had priginally planned.
+
+The additional models I create were
+
+- Category - to allow categories available across all stores
+- Address - to allow users to have multiple address and set default and billing addresses
+- OrderItem - to account ordering from different stores and also for frame sizes, colours and price
+- Sizes - to allow different prices across the available product sizes
+
 ### Accounts App Models
 
 ```
@@ -308,10 +319,11 @@ I have provided a data dump of my MariaDB database for previously created conten
 
 ## Future Improvements
 
-There are some future enhancement that could be added that I never considered
-due to time contraints.
+There are some future enhancement that could be added that I either didn't
+think of at the time or never considered due to time contraints.
 
 - Enable other paymennt methods such as Google Pay, Paypal and Apple Pay
+- Allow users to filter products by store
 - Provide monthly store reports that:
   - provide sales breakdown and profist after Celuvia Images % is taken
   - track sales of products
@@ -332,3 +344,6 @@ due to time contraints.
 - **[Piaxbay](pixabay.com)** Images
 - **[Stack Overflow](stackoverflow.com)**
 - **[W3 Schools](w3schools.com)**
+- **[PlantUML](https://editor.plantuml.com/)**
+- **[Whimsical](https://whimsical.com/home)**
+- **[draw.io](https://www.drawio.com/)**
