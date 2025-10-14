@@ -53,7 +53,6 @@ INSTALLED_APPS = [
     "shop",
     "stripe",
     "djangorestframework",
-    "djangorestframework-xml",
 ]
 
 MIDDLEWARE = [
@@ -85,6 +84,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "celuvia_images.wsgi.application"
+
+# REST Frameork
+REST_FRAMEWORK = {
+    "DEFAULT_RENDERED_CLASSES": (
+        "rest_framework_xml.renderers.XMLRenderer",
+    )
+}
 
 
 # Database
