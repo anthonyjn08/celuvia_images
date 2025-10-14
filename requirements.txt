@@ -5,6 +5,7 @@ charset-normalizer==3.4.3
 colorama==0.4.6
 dill==0.4.0
 Django==5.2.6
+djangorestframework==3.16.1
 git-filter-repo==2.47.0
 idna==3.10
 isort==6.0.1
