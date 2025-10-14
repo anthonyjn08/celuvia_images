@@ -100,8 +100,8 @@ DATABASES = {
 }
 
 AUTH_USER_MODEL = "accounts.User"
-LOGIN_REDIRECT_URL = "shop:product_list"
-LOGOUT_REDIRECT_URL = "shop:product_list"
+LOGIN_REDIRECT_URL = "shop:home"
+LOGOUT_REDIRECT_URL = "shop:home"
 LOGIN_URL = "accounts:login"
 
 # Password validation
