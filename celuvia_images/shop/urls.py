@@ -59,4 +59,7 @@ urlpatterns = [
 
     # Buyer orders
     path("my-orders/", views.my_orders, name="my_orders"),
+
+    # API cals
+    path("get/stores", views.view_stores)
 ]
