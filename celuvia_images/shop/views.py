@@ -3,7 +3,7 @@ import json
 from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -18,6 +18,8 @@ from .models import (Store, Product, Category, Size, Order, OrderItem, Review,
                      Address, FRAME_CHOICES)
 from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
                     CheckoutAddressForm)
+from .serializers import (StoreSerializer, ProductSerializer,
+                          CategorySerializer, SizeSerializer, ReviewSerializer)
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -1013,3 +1015,14 @@ def my_orders(request):
     """
     orders = request.user.orders.all().order_by("created_at")
     return render(request, "shop/my_orders.html", {"orders": orders})
+
+# REST API Serializers
+
+
+def view_stores(request):
+    """
+    Allows users to view all active stores using an API.
+    """
+    if request.method == "GET":
+        serializer = StoreSerializer(Store.objects.all(), many=True)
+        return JsonResponse(data=serializer.data, safe=False)
