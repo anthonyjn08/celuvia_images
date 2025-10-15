@@ -52,7 +52,7 @@ INSTALLED_APPS = [
     "accounts",
     "shop",
     "stripe",
-    "djangorestframework",
+    "rest_framework",
 ]
 
 MIDDLEWARE = [

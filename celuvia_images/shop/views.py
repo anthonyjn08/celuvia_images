@@ -20,6 +20,11 @@ from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
                     CheckoutAddressForm)
 from .serializers import (StoreSerializer, ProductSerializer,
                           CategorySerializer, SizeSerializer, ReviewSerializer)
+from rest_framework import status
+from rest_framework.decorators import (api_view, authentication_classes,
+                                       permission_classes)
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.permissions import IsAuthenticated
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -1019,6 +1024,7 @@ def my_orders(request):
 # REST API Serializers
 
 
+@api_view(["GET"])
 def view_stores(request):
     """
     Allows users to view all active stores using an API.
@@ -1026,3 +1032,24 @@ def view_stores(request):
     if request.method == "GET":
         serializer = StoreSerializer(Store.objects.all(), many=True)
         return JsonResponse(data=serializer.data, safe=False)
+
+
+@api_view(["POST"])
+@authentication_classes([BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def add_store_api(request):
+    """
+    Allows vendors to add new stores using an API.
+    """
+    if request.method == "POST":
+        if request.user.id == request.data["owner"]:
+            serializer = StoreSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse(
+                    data=serializer.data, status=status.HTTP_201_CREATED)
+            return JsonResponse(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(
+            {"ID mismatch": "User ID and Store ID do not match"},
+            status=status.HTTP_400_BAD_REQUEST)
