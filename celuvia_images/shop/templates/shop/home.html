@@ -24,7 +24,7 @@
     <!-- Product Cards -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mx-3 mx-md-0">
         {% for product in page_obj %}
-            {% if product.is_active %}
+            {% if product.is_active and product.sizes.small_price > 0 %}
                 <div class="col">
                     <!-- Product image -->
                     <div class="card product-card h-100 shadow-sm d-flex flex-column">

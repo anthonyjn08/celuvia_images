@@ -14,17 +14,18 @@ from collections import defaultdict
 from django.template.loader import render_to_string
 from datetime import timedelta
 from decimal import Decimal
+from django.utils.text import slugify
+from rest_framework import status
+from rest_framework.decorators import (api_view, authentication_classes,
+                                       permission_classes)
+from rest_framework.authentication import BasicAuthentication
+from rest_framework.permissions import IsAuthenticated
 from .models import (Store, Product, Category, Size, Order, OrderItem, Review,
                      Address, FRAME_CHOICES)
 from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
                     CheckoutAddressForm)
 from .serializers import (StoreSerializer, ProductSerializer,
                           CategorySerializer, SizeSerializer, ReviewSerializer)
-from rest_framework import status
-from rest_framework.decorators import (api_view, authentication_classes,
-                                       permission_classes)
-from rest_framework.authentication import BasicAuthentication
-from rest_framework.permissions import IsAuthenticated
 
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
@@ -1052,4 +1053,118 @@ def add_store_api(request):
                 serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         return JsonResponse(
             {"ID mismatch": "User ID and Store ID do not match"},
-            status=status.HTTP_400_BAD_REQUEST)
+            status=status.HTTP_400_BAD_REQUEST, safe=False)
+
+
+@api_view(["GET"])
+def get_categories(request):
+    """
+    Allow users to view categories.
+    """
+    if request.method == "GET":
+        serializer = CategorySerializer(Category.objects.all(), many=True)
+        return JsonResponse(data=serializer.data)
+
+
+@api_view(["POST"])
+@authentication_classes([BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def add_category_api(request):
+    """
+    Allow vendors to add new category through an API.
+    """
+    if request.method == "POST":
+        category_data = request.data.copy()
+        category_name = category_data["name"]
+        categories = Category.objects.all()
+        for category in categories:
+
+            # Check if Category already exists
+            if category_name == category.name:
+                return JsonResponse(
+                    {f"Error: {category.name} already exists"},
+                    status=status.HTTP_400_BAD_REQUEST)
+
+            # Create if it doesn't
+            slug = slugify(category_name)
+            category_data["slug"] = slug
+            serializer = CategorySerializer(data=category_data)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse(
+                    data=category_data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["GET"])
+@authentication_classes([BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def view_store_products(request):
+    """
+    Allow vendors to view products by store using an API.
+    """
+    if request.method == "GET":
+        stores = Store.objects.all()
+        for store in stores:
+            if request.user == store.owner:
+                products = Product.objects.filter(
+                    store=store, is_active=True).select_related("sizes")
+
+                # Build a list of the products
+                product_list = []
+                for product in products:
+                    product_data = ProductSerializer(product).data
+
+                    # If size prices exist
+                    if hasattr(product, "sizes"):
+                        product_data["sizes"] = SizeSerializer(
+                            product.sizes).data
+                    else:
+                        product_data["sizes"] = None
+
+                    # Add products to the list then return the list
+                    product_list.append(product_data)
+                return JsonResponse(
+                    product_list, safe=False, status=status.HTTP_200_OK)
+            return JsonResponse(status=status.HTTP_403_FORBIDDEN)
+
+
+@csrf_exempt
+@api_view(["POST"])
+@authentication_classes([BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def add_product_api(request):
+    """
+    Allow vendors to add products through an API.
+    """
+    if request.method == "POST":
+        if request.user.id == request.data["owner"]:
+
+            # Create a copy of the data
+            data = request.data.copy()
+
+            # Extract the category to check if it exists
+            category_name = data.get("category_name")
+
+            # Check if category exists or create a new category
+            if category_name:
+                slug = slugify(category_name)
+                category, _ = Category.objects.get_or_create(
+                    name=category_name,
+                    defaults={"slug": slug}
+                    )
+                data["category"] = category.id
+            elif not data.get("category"):
+                return JsonResponse(
+                    {"error": "Category or category_name must be provided"})
+
+            # Add the product
+            serializer = ProductSerializer(data=data)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse(
+                    data=serializer.data, status=status.HTTP_201_CREATED)
+            return JsonResponse(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse(
+            {"ID missmatch": "User ID and store ID do not match"},
+            status=status.HTTP_403_FORBIDDEN)

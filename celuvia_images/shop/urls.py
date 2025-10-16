@@ -60,7 +60,11 @@ urlpatterns = [
     # Buyer orders
     path("my-orders/", views.my_orders, name="my_orders"),
 
-    # API cals
+    # API calls
     path("get/stores", views.view_stores),
-    path("post/add_store_api", views.add_store_api),
+    path("post/store", views.add_store_api),
+    path("get/categories", views.get_categories),
+    path("post/category", views.add_category_api),
+    path("get/products", views.view_store_products),
+    path("post/product", views.add_product_api)
 ]
