@@ -3,6 +3,7 @@ astroid==3.3.11
 certifi==2025.8.3
 charset-normalizer==3.4.3
 colorama==0.4.6
+defusedxml==0.7.1
 dill==0.4.0
 Django==5.2.6
 djangorestframework==3.16.1
