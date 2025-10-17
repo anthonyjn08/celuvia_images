@@ -1,35 +1,24 @@
-import tweepy
+import requests
 from django.conf import settings
 
 
-class Tweet:
-    """
-    Class to send tweets when new Stores or Products are added to the site.
-    """
-    _instance = None
+def post_tweet(text: str):
+    access_token = settings.TWITTER_ACCESS_TOKEN
+    if not access_token:
+        raise ValueError("Missing ACCESS_TOKEN in Django settings")
 
-    def __init__(self):
-        auth = tweepy.OAuth1UserHandler(
-            settings.TWITTER_API_KEY,
-            settings.TWITTER_API_SECRET,
-            settings.TWITTER_ACCESS_TOKEN,
-            settings.TWITTER_ACCESS_SECRET
-        )
-        self.api = tweepy.API(auth)
+    url = "https://api.twitter.com/2/tweets"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json",
+    }
+    payload = {"text": text}
 
-    @classmethod
-    def instance(cls):
-        if cls._instance is None:
-            cls._instance = Tweet()
-        return cls._instance
+    response = requests.post(url, json=payload, headers=headers)
 
-    def make_tweet(self, text: str, image_path: str = None):
-        try:
-            if image_path:
-                self.api.update_status_with_media(
-                    filename=image_path, status=text
-                    )
-            else:
-                self.api.update_status(status=text)
-        except Exception as e:
-            print("Tweet failed:", e)
+    if response.status_code == 201:
+        print("✅ Tweet posted successfully.")
+        return response.json()
+    else:
+        print("❌ Tweet failed:", response.status_code, response.text)
+        return None
