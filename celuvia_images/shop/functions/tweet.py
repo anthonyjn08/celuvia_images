@@ -3,6 +3,9 @@ from django.conf import settings
 
 
 def post_tweet(text: str):
+    """
+    Use tweepy to authenticate and send tweets.
+    """
     print("sending tweet")
     client = tweepy.Client(
         consumer_key=settings.TWITTER_API_KEY,
