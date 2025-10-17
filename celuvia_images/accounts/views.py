@@ -71,7 +71,7 @@ def buyer_signup(request):
             user.save()
 
             # Check the user group exists
-            buyers_group = Group.objects.get_or_create(name="Buyers")
+            buyers_group, created = Group.objects.get_or_create(name="Buyers")
             user.groups.add(buyers_group)
             login(request, user)
             messages.success(
@@ -102,10 +102,10 @@ def vendor_signup(request):
             user.save()
 
             # Check if the vendor group exists or needs to be created
-            vendors_group = groups_and_permissions()
+            vendors_group, buyers_group = groups_and_permissions()
 
             # Assign the user
-            user.groups.add(vendors_group)
+            user.groups.add(vendors_group, buyers_group)
             login(request, user)
             messages.success(request,
                              "Your account has been created successfully!")

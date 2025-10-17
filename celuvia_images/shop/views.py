@@ -1,12 +1,11 @@
 import stripe
 import json
 import base64
-import requests
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest
+from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import get_user_model
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
@@ -33,50 +32,6 @@ from .serializers import (StoreSerializer, ProductSerializer,
 from .functions.tweet import post_tweet
 
 User = get_user_model()
-access_token = settings.TWITTER_ACCESS_TOKEN
-
-CLIENT_ID = settings.TWITTER_CLIENT_ID
-CLIENT_SECRET = settings.TWITTER_CLIENT_SECRET
-REDIRECT_URI = settings.TWITTER_REDIRECT_URI
-CODE_VERIFIER = settings.TWITTER_CODE_VERIFIER
-
-
-def twitter_callback(request):
-    code = request.GET.get('code')
-    if not code:
-        return HttpResponseBadRequest("Missing code parameter")
-
-    token_url = "https://api.twitter.com/2/oauth2/token"
-    data = {
-        "grant_type": "authorization_code",
-        "code": code,
-        "redirect_uri": REDIRECT_URI,
-        "client_id": CLIENT_ID,
-        "code_verifier": CODE_VERIFIER,
-    }
-
-    credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
-    b64_credentials = base64.b64encode(credentials.encode()).decode()
-
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": f"Basic {b64_credentials}"
-    }
-
-    response = requests.post(token_url, data=data, headers=headers)
-
-    if response.status_code != 200:
-        return HttpResponse(
-            f"Failed to get token: {response.text}", status=500)
-
-    token_data = response.json()
-    access_token = token_data.get("access_token")
-    refresh_token = token_data.get("refresh_token")
-
-    return HttpResponse(
-        f"Access token: {access_token}<br>Refresh token: "
-        f"{refresh_token}<br>Setup complete!"
-    )
 
 
 def home(request, category_slug=None):
@@ -176,7 +131,7 @@ def add_store(request):
             # Send tweet for new store
             try:
                 tweet_text = (
-                    f"🎉 New store added to Celuvia Images: {store.name}"
+                    f"📢 New store added to Celuvia Images: {store.name} 🎉"
                     )
                 post_tweet(tweet_text)
             except Exception as e:
@@ -348,7 +303,7 @@ def add_product(request, store_id):
 
             # Send tweet
             try:
-                tweet_text = f"🥳 {store.name} just added: {product.name} 📸"
+                tweet_text = f"📢 {store.name} just added: 📸 {product.name} 🥳"
                 post_tweet(tweet_text)
             except Exception as e:
                 print("Tweet failed:", e)
@@ -1131,7 +1086,7 @@ def add_store_api(request):
                 # Send tweet for new store
                 try:
                     tweet_text = (
-                        f"🎉 New store added to Celuvia Images: {store.name}"
+                        f"📢 New store added to Celuvia Images: {store.name} 🎉"
                         )
                     post_tweet(tweet_text)
                 except Exception as e:
@@ -1233,7 +1188,7 @@ def add_product_api(request):
             # Check if category exists or create a new category
             if category_name:
                 slug = slugify(category_name)
-                category, _ = Category.objects.get_or_create(
+                category, create = Category.objects.get_or_create(
                     name=category_name,
                     defaults={"slug": slug}
                     )

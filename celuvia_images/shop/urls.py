@@ -68,5 +68,4 @@ urlpatterns = [
     path("get/products", views.view_store_products),
     path("post/product", views.add_product_api),
     path("get/reviews", views.get_reviews),
-    path('callback/', views.twitter_callback, name='twitter_callback'),
 ]

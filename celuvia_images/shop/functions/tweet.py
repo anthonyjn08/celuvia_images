@@ -1,24 +1,20 @@
-import requests
+import tweepy
 from django.conf import settings
 
 
 def post_tweet(text: str):
-    access_token = settings.TWITTER_ACCESS_TOKEN
-    if not access_token:
-        raise ValueError("Missing ACCESS_TOKEN in Django settings")
+    print("sending tweet")
+    client = tweepy.Client(
+        consumer_key=settings.TWITTER_API_KEY,
+        consumer_secret=settings.TWITTER_API_SECRET,
+        access_token=settings.TWITTER_ACCESS_TOKEN,
+        access_token_secret=settings.TWITTER_ACCESS_TOKEN_SECRET,
+    )
 
-    url = "https://api.twitter.com/2/tweets"
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json",
-    }
-    payload = {"text": text}
-
-    response = requests.post(url, json=payload, headers=headers)
-
-    if response.status_code == 201:
-        print("✅ Tweet posted successfully.")
-        return response.json()
-    else:
-        print("❌ Tweet failed:", response.status_code, response.text)
+    try:
+        response = client.create_tweet(text=text)
+        print("✅ Tweet posted:", response)
+        return response
+    except Exception as e:
+        print("❌ Failed to post tweet:", str(e))
         return None
