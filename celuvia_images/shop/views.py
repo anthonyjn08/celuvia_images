@@ -1,9 +1,12 @@
 import stripe
 import json
+import base64
+from django.core.files.base import ContentFile
 from django.conf import settings
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse, JsonResponse
+from django.contrib.auth import get_user_model
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -26,8 +29,9 @@ from .forms import (StoreForm, ProductForm, ReviewForm, SizeForm,
                     CheckoutAddressForm)
 from .serializers import (StoreSerializer, ProductSerializer,
                           CategorySerializer, SizeSerializer, ReviewSerializer)
+from .functions.tweet import Tweet
 
-stripe.api_key = settings.STRIPE_SECRET_KEY
+User = get_user_model()
 
 
 def home(request, category_slug=None):
@@ -123,6 +127,16 @@ def add_store(request):
             store = form.save(commit=False)
             store.owner = request.user
             store.save()
+
+            # Send tweet for new store
+            try:
+                tweet_text = (
+                    f"🎉 New store added to Celuvia Images: {store.name}"
+                    )
+                Tweet.instance().make_tweet(tweet_text)
+            except Exception as e:
+                print("Tweet failed:", e)
+
             messages.success(
                 request, f"Store '{store.name}' created successfully.")
 
@@ -286,6 +300,14 @@ def add_product(request, store_id):
             size = size_form.save(commit=False)
             size.product = product
             size.save()
+
+            # Send tweet
+            try:
+                tweet_text = f"🥳 {store.name} just added: {product.name} 📸"
+                image_path = product.image.path if product.image else None
+                Tweet.instance().make_tweet(tweet_text, image_path)
+            except Exception as e:
+                print("Tweet failed:", e)
 
             messages.success(request,
                              f"Product '{product.name}' added successfully.")
@@ -1031,8 +1053,22 @@ def view_stores(request):
     Allows users to view all active stores using an API.
     """
     if request.method == "GET":
-        serializer = StoreSerializer(Store.objects.all(), many=True)
-        return JsonResponse(data=serializer.data, safe=False)
+        stores = Store.objects.select_related(
+            "owner").order_by("owner__full_name")
+
+        # Group Stores by owner
+        data = []
+        for owner in User.objects.filter(
+                stores__in=stores).distinct().order_by("full_name"):
+            owner_stores = stores.filter(owner=owner)
+            store_data = StoreSerializer(owner_stores, many=True).data
+            data.append({
+                "owner_id": owner.id,
+                "owner_name": owner.get_full_name(),
+                "stores": store_data,
+            })
+
+        return JsonResponse(data, safe=False, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -1046,7 +1082,16 @@ def add_store_api(request):
         if request.user.id == request.data["owner"]:
             serializer = StoreSerializer(data=request.data)
             if serializer.is_valid():
-                serializer.save()
+                store = serializer.save()
+
+                # Send tweet for new store
+                try:
+                    tweet_text = (
+                        f"🎉 New store added to Celuvia Images: {store.name}"
+                        )
+                    Tweet.instance().make_tweet(tweet_text)
+                except Exception as e:
+                    print("Tweet failed:", e)
                 return JsonResponse(
                     data=serializer.data, status=status.HTTP_201_CREATED)
             return JsonResponse(
@@ -1095,9 +1140,6 @@ def add_category_api(request):
                     data=category_data, status=status.HTTP_201_CREATED)
 
 
-@api_view(["GET"])
-@authentication_classes([BasicAuthentication])
-@permission_classes([IsAuthenticated])
 def view_store_products(request):
     """
     Allow vendors to view products by store using an API.
@@ -1105,27 +1147,26 @@ def view_store_products(request):
     if request.method == "GET":
         stores = Store.objects.all()
         for store in stores:
-            if request.user == store.owner:
-                products = Product.objects.filter(
-                    store=store, is_active=True).select_related("sizes")
+            products = Product.objects.filter(
+                store=store, is_active=True).select_related("sizes")
 
-                # Build a list of the products
-                product_list = []
-                for product in products:
-                    product_data = ProductSerializer(product).data
+            # Build a list of the products
+            product_list = []
+            for product in products:
+                product_data = ProductSerializer(product).data
 
-                    # If size prices exist
-                    if hasattr(product, "sizes"):
-                        product_data["sizes"] = SizeSerializer(
-                            product.sizes).data
-                    else:
-                        product_data["sizes"] = None
+                # If size prices exist
+                if hasattr(product, "sizes"):
+                    product_data["sizes"] = SizeSerializer(
+                        product.sizes).data
+                else:
+                    product_data["sizes"] = None
 
-                    # Add products to the list then return the list
-                    product_list.append(product_data)
-                return JsonResponse(
-                    product_list, safe=False, status=status.HTTP_200_OK)
-            return JsonResponse(status=status.HTTP_403_FORBIDDEN)
+                # Add products to the list then return the list
+                product_list.append(product_data)
+            return JsonResponse(
+                product_list, safe=False, status=status.HTTP_200_OK)
+        return JsonResponse(status=status.HTTP_403_FORBIDDEN)
 
 
 @csrf_exempt
@@ -1157,10 +1198,61 @@ def add_product_api(request):
                 return JsonResponse(
                     {"error": "Category or category_name must be provided"})
 
+            # Image upload using base64
+            image_base64 = data.get("image_base64")
+            if image_base64:
+                try:
+                    # Convert image from base64
+                    if ";base64," in image_base64:
+                        format, imgstr = image_base64.split(";base64,")
+                        ext = format.split("/")[-1]  # e.g. 'jpeg', 'png'
+                    else:
+                        imgstr = image_base64
+                        ext = "jpg"
+
+                    image_file = ContentFile(
+                        base64.b64decode(imgstr),
+                        name=f"upload.{ext}"
+                    )
+                    data["image"] = image_file
+                except Exception as e:
+                    return JsonResponse(
+                        {"error": f"Invalid image data: {str(e)}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
             # Add the product
             serializer = ProductSerializer(data=data)
             if serializer.is_valid():
-                serializer.save()
+                product = serializer.save()
+
+                # Get the price for each size
+                size_data = {
+                    "product": product.id,
+                    "small_price": data.get("small_price"),
+                    "medium_price": data.get("medium_price"),
+                    "large_price": data.get("large_price"),
+                }
+
+                # Add the prices
+                size_serializer = SizeSerializer(data=size_data)
+                if size_serializer.is_valid():
+                    size_serializer.save()
+                else:
+                    # If size serializer fails, delete the product
+                    product.delete()
+                    return JsonResponse(
+                        size_serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
+
+                # Send tweet
+                try:
+                    tweet_text = (f"🥳 {product.store.name} just added: "
+                                  f"📸 {product.name}\n{product.description}")
+                    image_path = product.image.path if product.image else None
+                    Tweet.instance().make_tweet(tweet_text, image_path)
+                except Exception as e:
+                    print("Tweet failed:", e)
                 return JsonResponse(
                     data=serializer.data, status=status.HTTP_201_CREATED)
             return JsonResponse(
@@ -1168,3 +1260,34 @@ def add_product_api(request):
         return JsonResponse(
             {"ID missmatch": "User ID and store ID do not match"},
             status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(["GET"])
+@authentication_classes([BasicAuthentication])
+@permission_classes([IsAuthenticated])
+def get_reviews(request):
+    if request.method == "GET":
+        user = request.user
+        user_reviews = []
+
+        # Find products owned by this user
+        products = Product.objects.filter(store__owner=user)
+
+        # Collect reviews for those products
+        for product in products:
+            reviews = Review.objects.filter(product=product)
+            for review in reviews:
+                review_data = ReviewSerializer(review).data
+                review_data["product_name"] = product.name
+                review_data["store_name"] = product.store.name
+                user_reviews.append(review_data)
+
+        # Return the collected reviews, or a message if there are none
+        if user_reviews:
+            return JsonResponse(
+                user_reviews, status=status.HTTP_200_OK, safe=False)
+        else:
+            return JsonResponse(
+                {"message": "There are no reviews for your products!"},
+                status=status.HTTP_200_OK
+            )

@@ -66,5 +66,6 @@ urlpatterns = [
     path("get/categories", views.get_categories),
     path("post/category", views.add_category_api),
     path("get/products", views.view_store_products),
-    path("post/product", views.add_product_api)
+    path("post/product", views.add_product_api),
+    path("get/reviews", views.get_reviews)
 ]

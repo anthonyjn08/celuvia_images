@@ -6,19 +6,58 @@ from django.core.mail import EmailMessage
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, authenticate, logout, get_user_model
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
+from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 from django.http import HttpResponseRedirect
 from django.contrib import messages
-from .forms import BuyerSignUpForm, VendorSignUpForm, LoginForm
 from .models import ResetToken
+from .forms import BuyerSignUpForm, VendorSignUpForm, LoginForm
+from shop.models import Store, Category, Product
 
 User = get_user_model()
 
 
+def groups_and_permissions():
+    """
+    This function is used to check whether the Buyer and Vendor users groups
+    exist in the database, with the required permissions. If they do not exist
+    then the group will be created with the permissions.
+    """
+    # Create Buyers group
+    buyers_group, created = Group.objects.get_or_create(name="Buyers")
+
+    # Create Vendors group
+    vendors_group, created = Group.objects.get_or_create(name="Vendors")
+
+    # Select models to grant permissions for
+    shop_models = [Category, Product, Store]
+    vendor_permissions = []
+
+    for model in shop_models:
+        content_type = ContentType.objects.get_for_model(model)
+        permissions = Permission.objects.filter(
+            content_type=content_type,
+            codename__in=[
+                f"add_{model._meta.model_name}",
+                f"change_{model._meta.model_name}",
+                f"view_{model._meta.model_name}",
+            ],
+        )
+        vendor_permissions.extend(permissions)
+
+    # Add the created permissions to the Vendr group if needed
+    for permission in vendor_permissions:
+        vendors_group.permissions.add(permission)
+
+    return buyers_group, vendors_group
+
+
 def buyer_signup(request):
     """
-    Allows new users to signup as a buyer.
+    Allows new users to signup as a buyer. If the Buyers group foesn't exist,
+    it will be created and the user assigned to the buyers group. If the group
+    already exists, new users will be assigned.
 
     - param request: HTTP request object.
     - return: Redirect to home on successful signup, or rendered buyer
@@ -30,7 +69,9 @@ def buyer_signup(request):
             user = form.save(commit=False)
             user.set_password(form.cleaned_data["password1"])
             user.save()
-            buyers_group = Group.objects.get(name="Buyers")
+
+            # Check the user group exists
+            buyers_group = Group.objects.get_or_create(name="Buyers")
             user.groups.add(buyers_group)
             login(request, user)
             messages.success(
@@ -44,7 +85,10 @@ def buyer_signup(request):
 
 def vendor_signup(request):
     """
-    Allows new users to signup as a vendor and sell products.
+    Allows new users to signup as a vendor and sell products. If the Vendors
+    user group does not already exist, The user group will be created, have
+    the required permissions added, and then assign the user to the group.
+    If the group and permissions exist, users will be added.
 
     - param request: HTTP request object.
     - return: Redirect to vendor dashboard on successful signup, or
@@ -56,7 +100,11 @@ def vendor_signup(request):
             user = form.save(commit=False)
             user.set_password(form.cleaned_data["password1"])
             user.save()
-            vendors_group = Group.objects.get(name="Vendors")
+
+            # Check if the vendor group exists or needs to be created
+            vendors_group = groups_and_permissions()
+
+            # Assign the user
             user.groups.add(vendors_group)
             login(request, user)
             messages.success(request,
