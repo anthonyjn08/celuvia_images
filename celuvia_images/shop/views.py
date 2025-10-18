@@ -1,6 +1,7 @@
 import stripe
 import json
 import base64
+import os
 from django.core.files.base import ContentFile
 from django.conf import settings
 from django.urls import reverse
@@ -301,10 +302,15 @@ def add_product(request, store_id):
             size.product = product
             size.save()
 
-            # Send tweet
+            # Send tweet, if image exists, include in the tweet too
+            tweet_text = f"📢 {store.name} just added: 📸 {product.name} 🥳"
             try:
-                tweet_text = f"📢 {store.name} just added: 📸 {product.name} 🥳"
-                post_tweet(tweet_text)
+                if product.image:
+                    media_path = os.path.join(
+                        settings.MEDIA_ROOT, product.image.name)
+                    post_tweet(tweet_text, media_path=media_path)
+                else:
+                    post_tweet(tweet_text)
             except Exception as e:
                 print("Tweet failed:", e)
 
@@ -1244,11 +1250,16 @@ def add_product_api(request):
                         size_serializer.errors,
                         status=status.HTTP_400_BAD_REQUEST)
 
-                # Send tweet
+                # Send tweet, if image exists, include in the tweet too
+                tweet_text = (
+                    f"📢 {product.store.name} just added: 📸 {product.name} 🥳")
                 try:
-                    tweet_text = (f"🥳 {product.store.name} just added: "
-                                  f"📸 {product.name}\n{product.description}")
-                    post_tweet(tweet_text)
+                    if product.image:
+                        media_path = os.path.join(
+                            settings.MEDIA_ROOT, product.image.name)
+                        post_tweet(tweet_text, media_path=media_path)
+                    else:
+                        post_tweet(tweet_text)
                 except Exception as e:
                     print("Tweet failed:", e)
                 return JsonResponse(
